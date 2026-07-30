@@ -49,19 +49,24 @@ lambda0 = 254.0
 a1 = 0.30
 
 [responses]
-# Cases 1-4: response to delta_c = c-c0. Since
-# ||delta_c||_infinity=1, each modulation is at most 15% of its background.
-D_T_c = -0.149
-D_R_c = 26.6
+# High-contrast mechanism profile for maximum visual dissimilarity:
+# Case 1: D_T_c > 0 (Depletion hole at peaks)
+D_T_c = 0.149
+# Case 2: D_R_c < 0 (Rotational wall-layer enhancement)
+D_R_c = -26.6
+# Case 3: v_c < 0 (Orthokinetic accumulation peak)
 v_c = -4.0
+# Case 4: lambda_c < 0 (Run length expansion)
 lambda_c = -38.0
 
-# Cases 5-8: response to S=e(theta).grad(c). Here
-# ||grad(c)||_infinity=exp(-1/2)/0.5=1.2131; these also use the 15% ceiling.
-D_T_S = 0.1236
-D_R_S = -22.0
-v_S = 3.29
-lambda_S = -31.4
+# Case 5: D_T_S > 0 (Diagonal quadrupolar cross elongation)
+D_T_S = 0.088
+# Case 6: D_R_S > 0 (Rotational scattering barrier)
+D_R_S = 15.0
+# Case 7: v_S > 0 (Direct velocity jet along field gradient)
+v_S = 2.30
+# Case 8: lambda_S < 0 (Run-and-tumble chemotactic comet stream)
+lambda_S = -22.0
 
 [field]
 kind = "multi_gaussian"
@@ -69,12 +74,22 @@ baseline = 1.0
 
 [[field.sources]]
 amplitude = 0.45
-center = [0.35, 0.25]
+center = [0.40, 0.00]
 sigma = [0.5, 0.5]
 
 [[field.sources]]
 amplitude = -0.35
-center = [-0.35, -0.25]
+center = [-0.40, 0.00]
+sigma = [0.5, 0.5]
+
+[[field.sources]]
+amplitude = -0.25
+center = [0.00, 0.40]
+sigma = [0.5, 0.5]
+
+[[field.sources]]
+amplitude = 0.35
+center = [0.00, -0.40]
 sigma = [0.5, 0.5]
 
 [video]
@@ -118,9 +133,6 @@ difference_bandwidth_fraction = 0.15
 # the detail movie uses a separate fixed range per case for morphology.
 # This percentile prevents a few extreme pixels from washing out either view.
 difference_case_percentile = 99.5
-# Toggle difference video generation (common global scale vs. per-case detail scale)
-render_common_difference_video = true
-render_detail_difference_video = true
 # This occupancy target selects M=16384.
 min_samples_per_kernel = 80
 # The fused kernel has no step-sized noise arrays; 256 keeps all M1 Pro cores

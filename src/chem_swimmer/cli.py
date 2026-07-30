@@ -321,18 +321,16 @@ def main() -> None:
         "micro": (
             "pdf_cases_00_08.npz",
             "probability_density_cases_00_08.mp4",
-            "probability_density_difference_cases_00_08.mp4",
             "probability_density_difference_detail_cases_00_08.mp4",
         ),
         "macro": (
             "pdf_macro_cases_00_08.npz",
             "probability_density_macro_cases_00_08.mp4",
-            "probability_density_difference_macro_cases_00_08.mp4",
             "probability_density_difference_detail_macro_cases_00_08.mp4",
         ),
     }
     for method, (pdf, method_config) in results.items():
-        data_name, video_name, difference_name, detail_name = names[method]
+        data_name, video_name, detail_name = names[method]
         data_output = (
             args.data_output
             if strategy != "both" and args.data_output is not None
@@ -343,20 +341,9 @@ def main() -> None:
             if strategy != "both" and args.output is not None
             else output_directory / video_name
         )
-        if strategy != "both" and args.difference_output is not None:
-            difference_output = args.difference_output
-        elif strategy != "both" and args.output is not None:
-            difference_output = video_output.with_name(
-                f"{video_output.stem}_difference{video_output.suffix}"
-            )
-        else:
-            difference_output = output_directory / difference_name
         detail_output = (
-            difference_output.with_name(
-                f"{difference_output.stem}_detail{difference_output.suffix}"
-            )
-            if strategy != "both"
-            and (args.difference_output is not None or args.output is not None)
+            args.difference_output
+            if strategy != "both" and args.difference_output is not None
             else output_directory / detail_name
         )
 
@@ -366,22 +353,13 @@ def main() -> None:
             method_config,
             video_output,
         )
-        if method_config.density.render_common_difference_video:
-            difference_result = render_position_pdf_difference_video(
-                pdf,
-                method_config,
-                difference_output,
-                case_limits=magnitude_limits,
-            )
-            print(f"Wrote {difference_result}")
-        if method_config.density.render_detail_difference_video:
-            detail_result = render_position_pdf_difference_video(
-                pdf,
-                method_config,
-                detail_output,
-                case_limits=detail_limits,
-            )
-            print(f"Wrote {detail_result}")
+        detail_result = render_position_pdf_difference_video(
+            pdf,
+            method_config,
+            detail_output,
+            case_limits=detail_limits,
+        )
+        print(f"Wrote {detail_result}")
         if method == "macro":
             print(
                 "Density used the closed PDE "
