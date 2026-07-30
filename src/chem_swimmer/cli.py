@@ -366,18 +366,22 @@ def main() -> None:
             method_config,
             video_output,
         )
-        difference_result = render_position_pdf_difference_video(
-            pdf,
-            method_config,
-            difference_output,
-            case_limits=magnitude_limits,
-        )
-        detail_result = render_position_pdf_difference_video(
-            pdf,
-            method_config,
-            detail_output,
-            case_limits=detail_limits,
-        )
+        if method_config.density.render_common_difference_video:
+            difference_result = render_position_pdf_difference_video(
+                pdf,
+                method_config,
+                difference_output,
+                case_limits=magnitude_limits,
+            )
+            print(f"Wrote {difference_result}")
+        if method_config.density.render_detail_difference_video:
+            detail_result = render_position_pdf_difference_video(
+                pdf,
+                method_config,
+                detail_output,
+                case_limits=detail_limits,
+            )
+            print(f"Wrote {detail_result}")
         if method == "macro":
             print(
                 "Density used the closed PDE "

@@ -113,6 +113,9 @@ difference_bandwidth_fraction = 0.15
 # the detail movie uses a separate fixed range per case for morphology.
 # This percentile prevents a few extreme pixels from washing out either view.
 difference_case_percentile = 99.5
+# Toggle difference video generation (common global scale vs. per-case detail scale)
+render_common_difference_video = true
+render_detail_difference_video = true
 # This occupancy target selects M=16384.
 min_samples_per_kernel = 80
 # The fused kernel has no step-sized noise arrays; 256 keeps all M1 Pro cores

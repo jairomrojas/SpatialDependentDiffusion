@@ -110,6 +110,8 @@ class DensitySettings:
     max_video_seconds: float
     difference_bandwidth_fraction: float | str = "auto"
     difference_case_percentile: float = 99.5
+    render_common_difference_video: bool = True
+    render_detail_difference_video: bool = True
 
 
 @dataclass(frozen=True)
@@ -409,6 +411,8 @@ def load_config(path: str | Path) -> ProjectConfig:
         "max_video_seconds": 10.0,
         "difference_bandwidth_fraction": "auto",
         "difference_case_percentile": 99.5,
+        "render_common_difference_video": True,
+        "render_detail_difference_video": True,
     }
     density_raw.update(raw.get("density", {}))
     macro_raw = {
