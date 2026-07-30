@@ -49,24 +49,24 @@ lambda0 = 254.0
 a1 = 0.30
 
 [responses]
-# High-contrast mechanism profile for maximum visual dissimilarity:
-# Case 1: D_T_c > 0 (Depletion hole at peaks)
+# All response parameters are non-negative (>= 0):
+# Case 1: D_T_c >= 0
 D_T_c = 0.149
-# Case 2: D_R_c < 0 (Rotational wall-layer enhancement)
-D_R_c = -26.6
-# Case 3: v_c < 0 (Orthokinetic accumulation peak)
-v_c = -4.0
-# Case 4: lambda_c < 0 (Run length expansion)
-lambda_c = -38.0
+# Case 2: D_R_c >= 0
+D_R_c = 26.6
+# Case 3: v_c >= 0
+v_c = 4.0
+# Case 4: lambda_c >= 0
+lambda_c = 38.0
 
-# Case 5: D_T_S > 0 (Diagonal quadrupolar cross elongation)
+# Case 5: D_T_S >= 0
 D_T_S = 0.088
-# Case 6: D_R_S > 0 (Rotational scattering barrier)
+# Case 6: D_R_S >= 0
 D_R_S = 15.0
-# Case 7: v_S > 0 (Direct velocity jet along field gradient)
+# Case 7: v_S >= 0
 v_S = 2.30
-# Case 8: lambda_S < 0 (Run-and-tumble chemotactic comet stream)
-lambda_S = -22.0
+# Case 8: lambda_S >= 0
+lambda_S = 22.0
 
 [field]
 kind = "multi_gaussian"
