@@ -381,8 +381,6 @@ def main() -> None:
         print(f"Configuration: {pdf.config_source}")
         print(f"Wrote {data_result}")
         video_size_mb = os.path.getsize(video_result) / (1024.0 * 1024.0)
-        difference_size_mb = os.path.getsize(difference_result) / (1024.0 * 1024.0)
         detail_size_mb = os.path.getsize(detail_result) / (1024.0 * 1024.0)
         print(f"Wrote {video_result} ({video_size_mb:.2f} MiB)")
-        print(f"Wrote {difference_result} ({difference_size_mb:.2f} MiB)")
         print(f"Wrote {detail_result} ({detail_size_mb:.2f} MiB)")
