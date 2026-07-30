@@ -1,0 +1,12 @@
+.DS_Store
+**/.DS_Store
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.nb[ci]
+.venv/
+.cache/
+.pytest_cache/
+.ruff_cache/
+tmp/
+single_particle_simulation/output/

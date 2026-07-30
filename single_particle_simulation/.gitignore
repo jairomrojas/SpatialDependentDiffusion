@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*.nb[ci]
+.venv/
+.cache/
+.pytest_cache/
+.ruff_cache/
+output/

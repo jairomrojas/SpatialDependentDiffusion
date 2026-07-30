@@ -1,0 +1,143 @@
+# Every value in this file is dimensionless. Length is measured in units of R,
+# time in units of R^2/D_T0, and the computational disk has radius one.
+
+[simulation]
+# This is t_final directly. There is no physical-time conversion.
+duration = 0.5
+# "auto" chooses the largest step satisfying every accuracy target below.
+# A number is treated as a manual step and rejected if it is not safe.
+dt = "auto"
+save_every = 1
+seed = 20260729
+max_lambda_dt = 0.05
+
+[numerics]
+# RMS angular diffusion allowed in one step, in radians.
+max_rotation_rms = 0.10
+# Both v dt and sqrt(4 D_T dt) must be below this fraction of the
+# smallest of R, the field widths, and characteristic_length (when supplied).
+max_spatial_step_fraction = 0.05
+# Disk scans and rendered fields use at least this many points per smallest
+# dimensionless length. For kind="user", set characteristic_length explicitly.
+scan_points_per_length = 10
+min_scan_grid = 101
+max_scan_grid = 1601
+characteristic_length = 0.0
+
+[domain]
+radius = 1.0
+# "sliding": position reflects, heading is unchanged.
+# "specular": position and heading reflect.
+# "diffuse": position reflects, heading is redrawn into the disk.
+boundary = "sliding"
+
+[initial]
+# Every canonical mechanism starts at the disk center with this same heading.
+position = [0.0, 0.0]
+heading = 0.35
+
+[kinetics]
+# Theory-valid visible profile:
+# gamma0=355.8, ell_p=v0/gamma0=0.07496, ell_p/min(sigma)=0.1499.
+v0 = 26.67
+# D_T0 is exactly one because time is measured in R^2/D_T0.
+D_T0 = 1.0
+D_R0 = 178.0
+lambda0 = 254.0
+# Mean cosine of a tumble angle. The tumble sampler realizes this value
+# exactly in expectation and supports -1 <= a1 <= 1.
+a1 = 0.30
+
+[responses]
+# Cases 1-4: response to delta_c = c-c0. Since
+# ||delta_c||_infinity=1, each modulation is at most 15% of its background.
+D_T_c = -0.149
+D_R_c = 26.6
+v_c = -4.0
+lambda_c = -38.0
+
+# Cases 5-8: response to S=e(theta).grad(c). Here
+# ||grad(c)||_infinity=exp(-1/2)/0.5=1.2131; these also use the 15% ceiling.
+D_T_S = 0.1236
+D_R_S = -22.0
+v_S = 3.29
+lambda_S = -31.4
+
+[field]
+# Options: "gaussian", "linear", "multi_gaussian", or "user".
+kind = "gaussian"
+baseline = 1.0
+amplitude = 1.0
+center = [0.35, 0.00]
+sigma = [0.5, 0.5]
+angle = 0.0
+
+[video]
+fps = 30
+dpi = 110
+trail_time = 0.02
+# "auto" uses the same resolution-controlled spacing as the parameter scan.
+field_grid = "auto"
+# "auto" uses Apple VideoToolbox on a supported Mac and libx264 elsewhere.
+codec = "auto"
+bitrate_kbps = 5000
+
+[statistics]
+# MSD is an ensemble average. Replicate m uses common random innovations
+# across all eight cases, so the comparison is paired and variance-reduced.
+ensemble_size = 32
+# 0 chooses an efficient number of local CPU workers; set 1 for serial runs.
+workers = 0
+show_standard_error = true
+
+[density]
+# "auto" selects the minimum M meeting the declared uniform-kernel occupancy
+# floor. This variance heuristic does not replace an M/bandwidth convergence
+# study.
+ensemble_size = "auto"
+# Equation (16) assumes rho=rho0+O(epsilon), so the PDF comparison starts from
+# a homogeneous spatial ensemble. Individual trajectories still use
+# initial.position.
+initial_position_distribution = "uniform"
+# The closure also assumes the fast heading distribution has relaxed.
+# Individual trajectory commands still use initial.heading.
+initial_heading_distribution = "isotropic"
+# The PDF is reported on this square grid inside the unit disk.
+grid_size = 81
+# Gaussian KDE width as a fraction of R. It spans about two grid cells here.
+bandwidth_fraction = 0.05
+# A wider paired KDE suppresses Monte Carlo texture while retaining more than
+# three kernel widths across the narrowest field length sigma=0.5.
+difference_bandwidth_fraction = 0.15
+# The standard movie uses one synchronized micro/macro range for magnitude;
+# the detail movie uses a separate fixed range per case for morphology.
+# This percentile prevents a few extreme pixels from washing out either view.
+difference_case_percentile = 99.5
+# This occupancy target selects M=16384.
+min_samples_per_kernel = 80
+# The fused kernel has no step-sized noise arrays; 256 keeps all M1 Pro cores
+# busy while using only about 11 MiB for 301 saved position slices.
+batch_size = 256
+# Maximum number of distinct PDF times; video frames reuse the nearest slice.
+time_slices = 301
+# Density changes more slowly than a particle path; 10 fps avoids 3x redundant
+# full-frame renders while showing the full dimensionless time interval.
+video_fps = 10
+# Direct raster frame width/height in pixels (must be even).
+frame_size = 1200
+# The complete simulated interval is compressed into at most 10 wall seconds.
+max_video_seconds = 10.0
+
+[performance]
+# "auto" selects the Numba/LLVM kernel for built-in fields and falls back to
+# readable Python for a custom field. Use "python" for debugging.
+engine = "auto"
+# 0 uses all locally available Numba threads (8 on this M1 Pro).
+threads = 0
+# Ensemble replicas are processed in bounded-memory native-thread batches.
+msd_batch_size = 8
+progress = true
+
+[macro]
+# Positivity margin for the conservative finite-volume update.
+cfl_safety = 0.90
