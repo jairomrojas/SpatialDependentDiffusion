@@ -9,4 +9,4 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 tmp/
-single_particle_simulation/output/
+output/

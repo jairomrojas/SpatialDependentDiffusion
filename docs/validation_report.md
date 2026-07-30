@@ -117,7 +117,7 @@ resolved, and none is larger than Case 3 on the signed common-scale
 observable.
 
 The \(M=16384\) sign-reversal study in
-`single_particle_simulation/output/data/response_scaling_audit.csv` isolates
+`output/data/response_scaling_audit.csv` isolates
 odd and even response components. Under the sliding wall:
 
 | Case | odd at \(|\alpha|=0.5\) | odd at \(|\alpha|=1\) | finding |
@@ -181,7 +181,7 @@ covered by regression tests.
 
 ## Remaining model assumptions and limits
 
-- The microscopic collision law is additional model input; `Theory.pdf`
+- The microscopic collision law is additional model input; `docs/theory.pdf`
   supplies the closed no-flux condition but does not uniquely select sliding,
   specular, or diffuse particle-wall behavior.
 - Euler-Maruyama and finite-step reflection converge only under refinement.

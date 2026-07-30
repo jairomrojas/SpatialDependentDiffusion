@@ -1,6 +1,6 @@
 # Mathematical and output guide
 
-This document explains what `single_particle_simulation` computes, how the
+This document explains what `chem_swimmer` computes, how the
 microscopic and macroscopic descriptions are related, and how to interpret
 every generated output. It is intended to let a collaborator understand the
 project without first reading the implementation.
@@ -27,7 +27,7 @@ The program answers this in two ways:
 
 1. `--micro` simulates many stochastic particles and estimates their density.
 2. `--macro` solves the closed drift-diffusion equation derived in
-   `Theory.pdf`.
+   `docs/theory.pdf`.
 
 Running `python run.py compare` performs both calculations, uses common scales
 for fair visual comparison, and creates quantitative inference diagnostics.
@@ -125,7 +125,7 @@ The angular distribution is summarized by the density \(\rho\), polarity
 \left(\mathbf e\mathbf e^{\mathsf T}-\frac12\mathbf I\right)P\,d\theta.
 \]
 
-`Theory.pdf` assumes:
+`docs/theory.pdf` assumes:
 
 - a small chemical response amplitude \(\epsilon\);
 - a small persistence-to-field-length ratio
@@ -353,7 +353,7 @@ disk.
 
 ## 8. Output directory: file-by-file interpretation
 
-All paths below are relative to `single_particle_simulation`.
+All paths below are relative to the repository root.
 
 ### `output/figures/chemical_field.png`
 
@@ -566,7 +566,7 @@ particle trajectory movie for Case `XX`.
 
 ## 10. Recommended collaborator workflow
 
-From `single_particle_simulation`, run:
+From the repository root, run:
 
 ```bash
 python run.py check --case all

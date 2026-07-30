@@ -11,16 +11,13 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.13"]
-    defaults:
-      run:
-        working-directory: single_particle_simulation
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-          cache-dependency-path: single_particle_simulation/pyproject.toml
+          cache-dependency-path: pyproject.toml
       - name: Install package and development checks
         run: |
           python -m pip install --upgrade pip

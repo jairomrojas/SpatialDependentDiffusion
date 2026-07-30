@@ -26,7 +26,7 @@ estimation, or the finite-volume solver should include:
 2. fixed-seed reproducibility where applicable;
 3. a refinement check in \(dt\), grid spacing, \(M\), or bandwidth;
 4. conservation/nonnegativity checks for probability densities;
-5. an update to `MATHEMATICAL_AND_OUTPUT_GUIDE.md` when an output field or
+5. an update to `docs/mathematical_guide.md` when an output field or
    interpretation changes;
 6. regenerated artifacts only after all checks pass.
 
