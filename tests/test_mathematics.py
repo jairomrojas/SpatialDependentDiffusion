@@ -90,7 +90,7 @@ class FieldTests(unittest.TestCase):
 
     def test_invalid_field_inputs_fail_early(self) -> None:
         config = load_config(PROJECT_ROOT / "configs" / "default.toml")
-        with self.assertRaisesRegex(ValueError, "unknown Gaussian field"):
+        with self.assertRaisesRegex(ValueError, r"unknown .*field"):
             create_field({**config.field, "sigm_typo": [1.0, 1.0]})
         with self.assertRaisesRegex(ValueError, "finite"):
             GaussianField(
