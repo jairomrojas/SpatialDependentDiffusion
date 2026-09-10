@@ -1,12 +1,29 @@
+# Operating-system and editor files
 .DS_Store
 **/.DS_Store
-__pycache__/
+
+# Python environments and caches
+**/.venv/
 **/__pycache__/
-*.py[cod]
-*.nb[ci]
-.venv/
-.cache/
-.pytest_cache/
-.ruff_cache/
-tmp/
-output/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+**/.cache/
+
+# Local coding-agent state
+.agents/
+.codex/
+
+# Reproducible heavyweight simulation outputs
+simulation/results/data/
+simulation/results/videos/
+simulation/results/figures/frames_vs_time/
+
+# LaTeX intermediates (the collaborator-facing PDF is retained)
+manuscript/*.aux
+manuscript/*.fdb_latexmk
+manuscript/*.fls
+manuscript/*.log
+manuscript/*.out
+manuscript/*.synctex.gz
+manuscript/*.bak

@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using this metadata."
+title: "Chem Swimmer: nutrient-responsive active-particle solvers"
+type: software
+authors:
+  - family-names: Rojas
+    given-names: "Jairo M."
+  - family-names: Brenner
+    given-names: Naama
+  - family-names: "El Hady"
+    given-names: Ahmed
+version: 0.2.0
+repository-code: "https://github.com/jairomrojas/SpatialDependentDiffusion"
+keywords:
+  - active matter
+  - chemotaxis
+  - finite-volume methods
+  - stochastic simulation
