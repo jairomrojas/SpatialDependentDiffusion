@@ -18,7 +18,7 @@ def render_chemical_field(
     config: ProjectConfig,
     output_path: str | Path,
 ) -> Path:
-    """Render ``c(x,y)`` throughout the dimensionless unit disk."""
+    """Render ``eta(x,y)`` throughout the dimensionless unit disk."""
 
     output = Path(output_path).expanduser().resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -59,13 +59,13 @@ def render_chemical_field(
     axis.set(
         xlabel="x",
         ylabel="y",
-        title="Dimensionless chemical field c(x,y)",
+        title=r"Dimensionless nutrient field $\eta(x,y)$",
         xlim=(-1.03, 1.03),
         ylim=(-1.03, 1.03),
     )
     axis.grid(False)
     colorbar = figure.colorbar(image, ax=axis, shrink=0.92, pad=0.04)
-    colorbar.set_label("c")
+    colorbar.set_label(r"$\eta$")
     figure.savefig(
         output,
         format="png",

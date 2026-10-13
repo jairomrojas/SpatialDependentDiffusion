@@ -57,13 +57,11 @@ def _micro_timestep_rows(
                 uniform_positions=True,
                 case_numbers=MICRO_CASES,
             )
-            final_concentration = np.asarray(
+            final_eta = np.asarray(
                 field.value(positions[:, :, -1]),
                 dtype=float,
             )
-            sample_chunks.append(
-                final_concentration - final_concentration[:, 0:1]
-            )
+            sample_chunks.append(final_eta - final_eta[:, 0:1])
         samples = np.concatenate(sample_chunks, axis=0)
         means = np.mean(samples, axis=0)
         standard_errors = np.std(samples, axis=0, ddof=1) / np.sqrt(ensemble_size)
@@ -112,10 +110,10 @@ def _macro_equilibrium_rows(
         x_grid, y_grid = np.meshgrid(coordinates, coordinates)
         points = np.stack((x_grid, y_grid), axis=-1)
         mask = x_grid * x_grid + y_grid * y_grid <= 1.0
-        concentration = np.asarray(field.value(points), dtype=float)
+        eta = np.asarray(field.value(points), dtype=float)
         raw = np.zeros((len(PDF_CASES), grid_size, grid_size), dtype=float)
         for case_index, mobility in enumerate(mobilities):
-            exponent = mobility * concentration[mask] / effective_diffusivity
+            exponent = mobility * eta[mask] / effective_diffusivity
             exponent -= np.max(exponent)
             raw[case_index, mask] = np.exp(exponent)
             raw[case_index] /= np.sum(raw[case_index]) * spacing**2
@@ -124,10 +122,7 @@ def _macro_equilibrium_rows(
             replace(config.density, grid_size=grid_size),
         )
         difference = observed.astype(float) - observed[0:1].astype(float)
-        exposure = (
-            np.sum(difference * concentration[None], axis=(-2, -1))
-            * spacing**2
-        )
+        exposure = np.sum(difference * eta[None], axis=(-2, -1)) * spacing**2
         for case_number in PDF_CASES:
             rows.append(
                 {
@@ -155,7 +150,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=Path,
-        default=PROJECT_ROOT / "configs" / "default.toml",
+        default=PROJECT_ROOT / "config" / "default.toml",
     )
     parser.add_argument("--ensemble", type=int, default=4096)
     parser.add_argument("--dt-factors", default="1,2,4")
@@ -164,10 +159,7 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=PROJECT_ROOT
-        / "output"
-        / "data"
-        / "numerical_convergence_audit.csv",
+        default=PROJECT_ROOT / "results" / "data" / "numerical_convergence_audit.csv",
     )
     args = parser.parse_args()
     factors = tuple(sorted({int(value) for value in args.dt_factors.split(",")}))

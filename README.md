@@ -19,7 +19,7 @@ microscopic motility rules from a population release*.
 ├── manuscript/                 paper source, PDF, figures, and references
 │   ├── main.tex
 │   ├── main.pdf
-│   ├── figures/                generated Figures 1--6
+│   ├── figures/                generated Figures 1--6 and the appendix sheet
 │   └── references/             locally retained source literature
 └── simulation/                 installable Python package and numerical work
     ├── config/default.toml     canonical paper experiment
@@ -48,8 +48,9 @@ python -m ruff check .
 python -m ruff format --check .
 ```
 
-See [`simulation/README.md`](simulation/README.md) for the `venv` fallback,
-performance-core pinning, benchmarking, and the full reproduction workflow.
+See [`simulation/README.md`](simulation/README.md) for the `venv` fallback
+(external collaborators only), thread and batch benchmarking, and the full
+reproduction workflow.
 
 Regenerate the standalone figures from the repository root. Figures 3 and the
 Cases 2--9 appendix sheet come from `simulation/run.py compare` instead.

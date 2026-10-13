@@ -1,7 +1,7 @@
 """Quantify whether Case-minus-Case-0 density signals live in the bulk or wall.
 
 Usage:
-    python scripts/diagnose_case_magnitudes.py result_a.npz [result_b.npz ...]
+    python scripts/inspect_case_magnitudes.py result_a.npz [result_b.npz ...]
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import numpy as np
 
 
 def summarize(path: Path, core_radius: float) -> None:
-    with np.load(path) as saved:
+    with np.load(path, allow_pickle=False) as saved:
         density = saved["difference_density"].astype(float)
         difference = density - density[0:1]
         coordinates = saved["coordinates"].astype(float)
@@ -31,16 +31,11 @@ def summarize(path: Path, core_radius: float) -> None:
         ].astype(float)
 
     print(f"\n{path}  (core radius {core_radius:g})")
-    print(
-        "case   max TV   core/TV   wall/TV   "
-        "final delta<c>   final z"
-    )
-    concentration_index = observable_names.index("mean_concentration")
+    print("case   max TV   core/TV   wall/TV   final delta<eta> final z")
+    eta_index = observable_names.index("mean_eta")
     for case_number in range(1, difference.shape[0]):
         total_variation = (
-            0.5
-            * np.sum(np.abs(difference[case_number]), axis=(-2, -1))
-            * area
+            0.5 * np.sum(np.abs(difference[case_number]), axis=(-2, -1)) * area
         )
         core_variation = (
             0.5
@@ -59,23 +54,18 @@ def summarize(path: Path, core_radius: float) -> None:
             * area
         )
         peak_index = int(np.argmax(total_variation))
-        concentration_difference = (
-            observable_values[concentration_index, case_number]
-            - observable_values[concentration_index, 0]
+        eta_difference = (
+            observable_values[eta_index, case_number] - observable_values[eta_index, 0]
         )
-        concentration_error = observable_errors[concentration_index, case_number]
-        final_error = concentration_error[-1]
-        final_z = (
-            concentration_difference[-1] / final_error
-            if final_error > 0.0
-            else 0.0
-        )
+        eta_error = observable_errors[eta_index, case_number]
+        final_error = eta_error[-1]
+        final_z = eta_difference[-1] / final_error if final_error > 0.0 else 0.0
         peak_tv = total_variation[peak_index]
         print(
             f"C{case_number:<2d}  {peak_tv:8.5f}   "
             f"{core_variation[peak_index] / peak_tv:7.3f}   "
             f"{wall_variation[peak_index] / peak_tv:7.3f}   "
-            f"{concentration_difference[-1]:14.6g}   "
+            f"{eta_difference[-1]:14.6g}   "
             f"{final_z:7.2f}"
         )
 

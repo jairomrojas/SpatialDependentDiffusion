@@ -17,6 +17,7 @@ from ..density import PDF_CASES, PositionPDFResult, smooth_density_stack
 from ..fields import ChemicalField
 from ..kinetics import macroscopic_coefficients
 from ..numerics import inferred_characteristic_length
+from ..turning import create_turning_kernel
 
 CASE_LABELS = tuple(f"C{case_number}" for case_number in PDF_CASES)
 FIRST_NEUMANN_DISK_WAVENUMBER = 1.8411837813406593
@@ -41,9 +42,9 @@ def render_microscopic_mechanism_report(
         raise ValueError("microscopic observable dimensions are inconsistent")
     indices = {name: index for index, name in enumerate(observables.names)}
     required = {
-        "mean_concentration",
-        "alignment",
-        "nematic_alignment",
+        "mean_eta",
+        "zeta",
+        "nematic_zeta",
         "heading_correlation_2",
         "cumulative_tumbles",
         "mean_squared_displacement",
@@ -74,14 +75,15 @@ def render_microscopic_mechanism_report(
                     )
                 writer.writerow(row)
 
-    concentration_index = indices["mean_concentration"]
-    concentration = observables.values[concentration_index]
-    concentration_difference = concentration - concentration[0:1]
-    concentration_error = observables.paired_standard_errors[concentration_index]
-    final_case3_scale = abs(concentration_difference[3, -1])
+    eta_index = indices["mean_eta"]
+    eta = observables.values[eta_index]
+    eta_difference = eta - eta[0:1]
+    eta_error = observables.paired_standard_errors[eta_index]
+    final_case3_scale = abs(eta_difference[3, -1])
     familywise_z_threshold = NormalDist().inv_cdf(
         1.0 - 0.05 / (2.0 * (len(micro.case_numbers) - 1))
     )
+    P_turn = create_turning_kernel(config.turning).P_turn
     summary = Path(summary_path).expanduser().resolve()
     summary.parent.mkdir(parents=True, exist_ok=True)
     with summary.open("w", newline="", encoding="utf-8") as handle:
@@ -91,7 +93,7 @@ def render_microscopic_mechanism_report(
                 "case",
                 "kappa",
                 "linear_density_prediction",
-                "final_delta_mean_c",
+                "final_delta_mean_eta",
                 "final_paired_standard_error",
                 "final_z_score",
                 "familywise_95_z_threshold",
@@ -103,9 +105,10 @@ def render_microscopic_mechanism_report(
             mobility = macroscopic_coefficients(
                 config.kinetics,
                 config.responses.only_case(case_number),
+                P_turn,
             )[2]
-            effect = concentration_difference[case_index, -1]
-            error = concentration_error[case_index, -1]
+            effect = eta_difference[case_index, -1]
+            error = eta_error[case_index, -1]
             z_score = effect / error if error > 0.0 else float("nan")
             relative = (
                 abs(effect) / final_case3_scale
@@ -125,8 +128,7 @@ def render_microscopic_mechanism_report(
                     f"{familywise_z_threshold:.12g}",
                     f"{relative:.12g}",
                     bool(
-                        np.isfinite(z_score)
-                        and abs(z_score) >= familywise_z_threshold
+                        np.isfinite(z_score) and abs(z_score) >= familywise_z_threshold
                     ),
                 )
             )
@@ -184,17 +186,17 @@ def render_microscopic_mechanism_report(
 
     plot_paired(
         axes[0, 0],
-        "mean_concentration",
+        "mean_eta",
         (2, 3, 4, 5),
         title="Signed response: bulk-closure-zero cases versus C3",
-        ylabel=r"$\Delta\langle c\rangle$",
+        ylabel=r"$\Delta\langle\eta\rangle$",
     )
     plot_paired(
         axes[0, 1],
-        "alignment",
+        "zeta",
         (1, 3),
         title="Local polarization distinguishes C1 from C3",
-        ylabel=r"$\Delta\langle\mathbf{e}\cdot\nabla c\rangle$",
+        ylabel=r"$\Delta\langle\zeta\rangle$",
     )
     plot_paired(
         axes[0, 2],
@@ -205,10 +207,10 @@ def render_microscopic_mechanism_report(
     )
     plot_paired(
         axes[1, 0],
-        "nematic_alignment",
+        "nematic_zeta",
         (6, 8),
         title="Nematic-alignment test: C6 versus C8",
-        ylabel=r"$\Delta\langle|\nabla c|\cos 2(\theta-\phi_c)\rangle$",
+        ylabel=r"$\Delta\langle|\nabla\eta|\cos 2(\theta-\phi_\eta)\rangle$",
     )
     plot_paired(
         axes[1, 1],
@@ -241,13 +243,13 @@ def _series(
     spacing = 2.0 / len(coordinates)
     x_grid, y_grid = np.meshgrid(coordinates, coordinates)
     points = np.stack((x_grid, y_grid), axis=-1)
-    concentration = np.asarray(field.value(points), dtype=float)
+    eta = np.asarray(field.value(points), dtype=float)
     density = result.density.astype(float)
     difference = density - density[0:1]
     area = spacing**2
     field_exposure = (
         np.sum(
-            difference * concentration[None, None],
+            difference * eta[None, None],
             axis=(-2, -1),
         )
         * area
@@ -281,11 +283,11 @@ def _equilibrium_observables(
     spacing = 2.0 / grid_size
     x_grid, y_grid = np.meshgrid(coordinates, coordinates)
     points = np.stack((x_grid, y_grid), axis=-1)
-    concentration = np.asarray(field.value(points), dtype=float)
+    eta = np.asarray(field.value(points), dtype=float)
     mask = x_grid * x_grid + y_grid * y_grid <= 1.0
     raw = np.zeros((len(PDF_CASES), grid_size, grid_size), dtype=float)
     for case_index, mobility in enumerate(mobilities):
-        exponent = mobility * concentration[mask] / effective_diffusivity
+        exponent = mobility * eta[mask] / effective_diffusivity
         exponent -= np.max(exponent)
         raw[case_index, mask] = np.exp(exponent)
         raw[case_index] /= np.sum(raw[case_index]) * spacing**2
@@ -300,7 +302,7 @@ def _equilibrium_observables(
     observed = observed.astype(float)
     difference = observed - observed[0:1]
     area = spacing**2
-    exposure = np.sum(difference * concentration[None], axis=(-2, -1)) * area
+    exposure = np.sum(difference * eta[None], axis=(-2, -1)) * area
     centroid_x = np.sum(difference * x_grid[None], axis=(-2, -1)) * area
     centroid_y = np.sum(difference * y_grid[None], axis=(-2, -1)) * area
     total_variation = 0.5 * np.sum(np.abs(difference), axis=(-2, -1)) * area
@@ -347,8 +349,8 @@ def _write_timeseries(
                 "method",
                 "case",
                 "time",
-                "delta_mean_c",
-                "cumulative_delta_mean_c",
+                "delta_mean_eta",
+                "cumulative_delta_mean_eta",
                 "delta_centroid_x",
                 "delta_centroid_y",
                 "total_variation_from_case0",
@@ -373,30 +375,55 @@ def _write_timeseries(
                     )
 
 
+_METHOD_LINESTYLES = {"micro": "-", "macro": "--", "analytic": ":"}
+_METHOD_LINEWIDTHS = {"micro": 1.5, "moment": 1.35, "macro": 1.2, "analytic": 1.6}
+
+
 def render_density_inference_report(
-    micro: PositionPDFResult,
-    macro: PositionPDFResult,
+    results: dict[str, PositionPDFResult],
     field: ChemicalField,
     config: ProjectConfig,
     figure_path: str | Path,
     summary_path: str | Path,
     timeseries_path: str | Path,
 ) -> tuple[Path, Path, Path]:
-    """Write shared-scale observables, relaxation times, and CSV data."""
+    """Write shared-scale observables, relaxation times, and CSV data.
 
-    if micro.case_numbers != macro.case_numbers:
-        raise ValueError("micro and macro results use inconsistent cases")
-    micro_series = _series(micro, field)
-    macro_series = _series(macro, field)
-    gamma0, effective_diffusivity, _ = macroscopic_coefficients(
+    ``results`` maps a method name (``"micro"``, ``"moment"``, ``"macro"``, ``"analytic"``,
+    ...) to its :class:`~chem_swimmer.density.PositionPDFResult`; any subset
+    of two or more methods is accepted; all must share the same case numbers.
+    Equilibrium and relaxation-time diagnostics are computed from whichever
+    of ``"macro"``/``"analytic"`` is present (both reach a smooth,
+    noise-free equilibrium; ``"macro"`` is preferred when both are present),
+    falling back to ``"micro"`` if neither closed-form method ran.
+    """
+
+    if len(results) < 2:
+        raise ValueError("render_density_inference_report needs at least two methods")
+    case_numbers = next(iter(results.values())).case_numbers
+    for name, result in results.items():
+        if result.case_numbers != case_numbers:
+            raise ValueError(f"{name} result uses inconsistent case numbers")
+    series = {name: _series(result, field) for name, result in results.items()}
+
+    reference_name = next(
+        (name for name in ("macro", "analytic") if name in results), next(iter(results))
+    )
+    reference = results[reference_name]
+    reference_series = series[reference_name]
+
+    P_turn = create_turning_kernel(config.turning).P_turn
+    gamma1, effective_diffusivity, _ = macroscopic_coefficients(
         config.kinetics,
         config.responses.only_case(0),
+        P_turn,
     )
     mobilities = np.asarray(
         [
             macroscopic_coefficients(
                 config.kinetics,
                 config.responses.only_case(case_number),
+                P_turn,
             )[2]
             for case_number in PDF_CASES
         ],
@@ -410,7 +437,7 @@ def render_density_inference_report(
     ) = _equilibrium_observables(
         config,
         field,
-        macro,
+        reference,
         effective_diffusivity,
         mobilities,
     )
@@ -421,15 +448,15 @@ def render_density_inference_report(
         target = equilibrium_exposure[case_index]
         if abs(target) <= 1.0e-14:
             continue
-        ratio = macro_series["field_exposure"][case_index] / target
-        t50[case_index] = _crossing_time(macro.times, ratio, 0.5)
-        t90[case_index] = _crossing_time(macro.times, ratio, 0.9)
-        relaxation[case_index] = _effective_relaxation_time(macro.times, ratio)
+        ratio = reference_series["field_exposure"][case_index] / target
+        t50[case_index] = _crossing_time(reference.times, ratio, 0.5)
+        t90[case_index] = _crossing_time(reference.times, ratio, 0.9)
+        relaxation[case_index] = _effective_relaxation_time(reference.times, ratio)
 
     summary = Path(summary_path).expanduser().resolve()
     summary.parent.mkdir(parents=True, exist_ok=True)
     field_length = inferred_characteristic_length(config, field)
-    angular_time = 1.0 / gamma0
+    angular_time = 1.0 / gamma1
     field_diffusion_time = field_length**2 / effective_diffusivity
     disk_mixing_time = 1.0 / (effective_diffusivity * FIRST_NEUMANN_DISK_WAVENUMBER**2)
     with summary.open("w", newline="", encoding="utf-8") as handle:
@@ -439,13 +466,13 @@ def render_density_inference_report(
                 "case",
                 "kappa",
                 "kappa_over_D_eff",
-                "equilibrium_delta_mean_c",
+                "equilibrium_delta_mean_eta",
                 "equilibrium_delta_centroid_x",
                 "equilibrium_delta_centroid_y",
                 "equilibrium_total_variation",
-                "macro_t50",
-                "macro_t90",
-                "macro_effective_relaxation_time",
+                f"{reference_name}_t50",
+                f"{reference_name}_t90",
+                f"{reference_name}_effective_relaxation_time",
                 "angular_relaxation_time",
                 "field_diffusion_time",
                 "disk_mixing_time",
@@ -473,8 +500,8 @@ def render_density_inference_report(
     timeseries = Path(timeseries_path).expanduser().resolve()
     _write_timeseries(
         timeseries,
-        (micro, macro),
-        (micro_series, macro_series),
+        tuple(results.values()),
+        tuple(series.values()),
     )
 
     figure_output = Path(figure_path).expanduser().resolve()
@@ -486,45 +513,40 @@ def render_density_inference_report(
 
     for case_index in range(1, len(PDF_CASES)):
         color = colors[case_index - 1]
-        axes[0, 0].plot(
-            micro.times,
-            micro_series["field_exposure"][case_index],
-            color=color,
-            linewidth=1.5,
-            label=f"C{case_index}",
-        )
-        axes[0, 0].plot(
-            macro.times,
-            macro_series["field_exposure"][case_index],
-            color=color,
-            linewidth=1.2,
-            linestyle="--",
-        )
-        axes[0, 1].plot(
-            micro.times,
-            micro_series["cumulative_field_exposure"][case_index],
-            color=color,
-            linewidth=1.5,
-        )
-        axes[0, 1].plot(
-            macro.times,
-            macro_series["cumulative_field_exposure"][case_index],
-            color=color,
-            linewidth=1.2,
-            linestyle="--",
-        )
+        for method_index, (name, result) in enumerate(results.items()):
+            values = series[name]
+            linestyle = _METHOD_LINESTYLES.get(name, "-.")
+            linewidth = _METHOD_LINEWIDTHS.get(name, 1.3)
+            axes[0, 0].plot(
+                result.times,
+                values["field_exposure"][case_index],
+                color=color,
+                linewidth=linewidth,
+                linestyle=linestyle,
+                label=f"C{case_index}" if method_index == 0 else None,
+            )
+            axes[0, 1].plot(
+                result.times,
+                values["cumulative_field_exposure"][case_index],
+                color=color,
+                linewidth=linewidth,
+                linestyle=linestyle,
+            )
 
+    style_text = ", ".join(
+        f"{_METHOD_LINESTYLES.get(name, '-.')} {name}" for name in results
+    )
     axes[0, 0].set(
-        title="Field exposure: solid micro, dashed macro",
+        title=f"Field exposure ({style_text})",
         xlabel="t",
-        ylabel=r"$\Delta\langle c\rangle$",
+        ylabel=r"$\Delta\langle\eta\rangle$",
     )
     axes[0, 0].axhline(0.0, color="0.6", linewidth=0.8)
     axes[0, 0].legend(ncol=4, fontsize=8, frameon=False)
     axes[0, 1].set(
         title="Time-integrated field exposure on one common scale",
         xlabel="t",
-        ylabel=r"$\int_0^t\Delta\langle c\rangle\,ds$",
+        ylabel=r"$\int_0^t\Delta\langle\eta\rangle\,ds$",
     )
     axes[0, 1].axhline(0.0, color="0.6", linewidth=0.8)
 
@@ -568,7 +590,7 @@ def render_density_inference_report(
         color="0.25",
         linestyle=":",
         linewidth=1.2,
-        label=r"$1/\gamma_0$",
+        label=r"$1/\gamma_1$",
     )
     axes[1, 1].axhline(
         disk_mixing_time,
@@ -585,6 +607,22 @@ def render_density_inference_report(
         yscale="log",
     )
     axes[1, 1].legend(ncol=2, fontsize=8, frameon=False)
+    if np.all(np.isnan(t50[identifiable])) and np.all(np.isnan(t90[identifiable])):
+        # t50/t90 are undefined (not a plotting bug) whenever the run's
+        # duration ends before the signed observable crosses halfway/90% of
+        # its own eventual change -- an empty bar at these x-positions means
+        # "not reached by t_final", not "value is zero".
+        axes[1, 1].text(
+            0.5,
+            0.5,
+            "t50/t90 not reached within this run's duration\n"
+            "(only tau_fit, the exponential fit rate, is shown)",
+            transform=axes[1, 1].transAxes,
+            ha="center",
+            va="center",
+            fontsize=8,
+            color="0.4",
+        )
 
     for axis in axes.flat:
         axis.grid(alpha=0.22, linewidth=0.6)

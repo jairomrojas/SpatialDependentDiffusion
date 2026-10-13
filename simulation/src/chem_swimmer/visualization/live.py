@@ -93,8 +93,8 @@ def play_live(
 
         status.set_text(
             f"t = {trajectory.times[index]:9.3g}\n"
-            f"c = {trajectory.concentration[index]:7.3f}   "
-            f"S = {trajectory.alignment[index]:+7.3f}\n"
+            f"eta = {trajectory.eta[index]:7.3f}   "
+            f"zeta = {trajectory.zeta[index]:+7.3f}\n"
             f"v = {trajectory.speed[index]:7.3f}   "
             f"D_T = {trajectory.translational_diffusivity[index]:7.4f}\n"
             f"D_R = {trajectory.rotational_diffusivity[index]:7.3f}   "

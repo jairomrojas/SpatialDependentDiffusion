@@ -8,8 +8,13 @@ from math import ceil, inf
 import numpy as np
 
 from .config import ProjectConfig
-from .fields import ChemicalField
-from .fields.analytic import GaussianField, LinearField, MultiGaussianField
+from .fields import ChemicalField, disk_area_average
+from .fields.builtin import (
+    GaussianField,
+    LinearField,
+    MultiGaussianField,
+    PeriodicField,
+)
 
 
 @dataclass(frozen=True)
@@ -78,6 +83,8 @@ def inferred_characteristic_length(
     if isinstance(field, MultiGaussianField):
         widths = [width for source in field.sources for width in source.sigma]
         return min(config.domain.radius, *widths)
+    if isinstance(field, PeriodicField):
+        return min(config.domain.radius, 1.0 / field.wavenumber)
     if isinstance(field, LinearField):
         return config.domain.radius
     raise ValueError(
@@ -117,9 +124,9 @@ def _sample_field_in_disk(
     x_grid, y_grid = np.meshgrid(coordinates, coordinates)
     mask = x_grid * x_grid + y_grid * y_grid <= radius * radius
     positions = np.stack((x_grid[mask], y_grid[mask]), axis=-1)
-    concentration, gradient = field.value_and_gradient(positions)
+    eta, gradient = field.value_and_gradient(positions)
     return (
-        np.asarray(concentration, dtype=float).reshape(-1),
+        np.asarray(eta, dtype=float).reshape(-1),
         np.asarray(gradient, dtype=float).reshape(-1, 2),
     )
 
@@ -127,20 +134,24 @@ def _sample_field_in_disk(
 def _signal_bounds(
     config: ProjectConfig,
     field: ChemicalField,
-    concentration: np.ndarray,
+    eta: np.ndarray,
     gradient: np.ndarray,
 ) -> tuple[float, float, float]:
-    """Conservative ``delta_c`` and ``|grad(c)|`` bounds when analytic."""
+    """Conservative ``delta_eta`` and ``|grad(eta)|`` bounds when analytic."""
+
+    eta0 = disk_area_average(field, config.domain.radius)
 
     if isinstance(field, GaussianField):
-        delta_min = min(0.0, field.amplitude)
-        delta_max = max(0.0, field.amplitude)
+        offset = field.baseline - eta0
+        delta_min = offset + min(0.0, field.amplitude)
+        delta_max = offset + max(0.0, field.amplitude)
         gradient_max = abs(field.amplitude) * np.exp(-0.5) / min(field.sigma)
         return delta_min, delta_max, float(gradient_max)
 
     if isinstance(field, MultiGaussianField):
-        delta_min = sum(min(0.0, source.amplitude) for source in field.sources)
-        delta_max = sum(max(0.0, source.amplitude) for source in field.sources)
+        offset = field.baseline - eta0
+        delta_min = offset + sum(min(0.0, source.amplitude) for source in field.sources)
+        delta_max = offset + sum(max(0.0, source.amplitude) for source in field.sources)
         gradient_max = sum(
             abs(source.amplitude) * np.exp(-0.5) / min(source.sigma)
             for source in field.sources
@@ -150,16 +161,13 @@ def _signal_bounds(
     if isinstance(field, LinearField):
         gradient_vector = np.asarray(field.gradient_vector, dtype=float)
         gradient_max = float(np.linalg.norm(gradient_vector))
-        center_shift = -float(
-            np.dot(np.asarray(field.center, dtype=float), gradient_vector)
-        )
         return (
-            center_shift - config.domain.radius * gradient_max,
-            center_shift + config.domain.radius * gradient_max,
+            -config.domain.radius * gradient_max,
+            config.domain.radius * gradient_max,
             gradient_max,
         )
 
-    delta = concentration - field.reference_value
+    delta = eta - eta0
     # A declared characteristic length plus N points across it controls the
     # custom-field scan. The margin acknowledges extrema between grid points.
     margin = 1.0 / config.numerics.scan_points_per_length
@@ -175,7 +183,7 @@ def scan_case_from_samples(
     config: ProjectConfig,
     field: ChemicalField,
     case_number: int,
-    concentration: np.ndarray,
+    eta: np.ndarray,
     gradient: np.ndarray,
     signal_bounds: tuple[float, float, float] | None = None,
 ) -> dict[str, tuple[float, float]]:
@@ -183,30 +191,35 @@ def scan_case_from_samples(
 
     response = config.responses.only_case(case_number)
     if signal_bounds is None:
-        signal_bounds = _signal_bounds(config, field, concentration, gradient)
+        signal_bounds = _signal_bounds(config, field, eta, gradient)
     delta_min, delta_max, gradient_max = signal_bounds
     base = config.kinetics
     coefficients = {
-        "v": (base.v0, response.v_c, response.v_S),
-        "D_T": (base.D_T0, response.D_T_c, response.D_T_S),
-        "D_R": (base.D_R0, response.D_R_c, response.D_R_S),
-        "lambda": (base.lambda0, response.lambda_c, response.lambda_S),
+        "v": (base.v0, response.v_eta, response.v_zeta),
+        "D_T": (base.D_T0, response.D_T_eta, response.D_T_zeta),
+        "D_R": (base.D_R0, response.D_R_eta, response.D_R_zeta),
+        "lambda": (base.lambda0, response.lambda_eta, response.lambda_zeta),
     }
     result: dict[str, tuple[float, float]] = {}
     for name, (
         background,
-        concentration_response,
-        alignment_response,
+        eta_response,
+        zeta_response,
     ) in coefficients.items():
-        concentration_values = (
-            background + concentration_response * delta_min,
-            background + concentration_response * delta_max,
+        eta_values = (
+            background + eta_response * delta_min,
+            background + eta_response * delta_max,
         )
-        half_width = abs(alignment_response) * gradient_max
+        half_width = abs(zeta_response) * gradient_max
         result[name] = (
-            float(min(concentration_values) - half_width),
-            float(max(concentration_values) + half_width),
+            float(min(eta_values) - half_width),
+            float(max(eta_values) + half_width),
         )
+    angular_drift_bound = abs(response.chi_theta) * gradient_max
+    result["angular_drift"] = (
+        -float(angular_drift_bound),
+        float(angular_drift_bound),
+    )
     return result
 
 
@@ -223,19 +236,16 @@ def build_resolution_plan(
 
     length = inferred_characteristic_length(config, field)
     scan_grid = _required_grid(config, length)
-    concentration, gradient = _sample_field_in_disk(
-        field, config.domain.radius, scan_grid
-    )
-    signal_bounds = _signal_bounds(config, field, concentration, gradient)
+    eta, gradient = _sample_field_in_disk(field, config.domain.radius, scan_grid)
+    signal_bounds = _signal_bounds(config, field, eta, gradient)
     ranges_by_case = {
-        case: scan_case_from_samples(
-            config, field, case, concentration, gradient, signal_bounds
-        )
+        case: scan_case_from_samples(config, field, case, eta, gradient, signal_bounds)
         for case in cases
     }
 
     for case, ranges in ranges_by_case.items():
-        for name, bounds in ranges.items():
+        for name in ("v", "D_T", "D_R", "lambda"):
+            bounds = ranges[name]
             if bounds[0] < 0:
                 raise ValueError(
                     f"case {case} produces negative {name}={bounds[0]:.6g}; "
@@ -256,6 +266,10 @@ def build_resolution_plan(
     lambda_max = (
         max(bounds["lambda"][1] for bounds in ranges_by_case.values()) * scales.time
     )
+    angular_drift_max = (
+        max(bounds["angular_drift"][1] for bounds in ranges_by_case.values())
+        * scales.time
+    )
     target_step = config.numerics.max_spatial_step_fraction * length / scales.length
 
     constraints = {
@@ -267,6 +281,11 @@ def build_resolution_plan(
         "rotational diffusion": (
             config.numerics.max_rotation_rms**2 / (2.0 * D_R_max)
             if D_R_max > 0
+            else inf
+        ),
+        "angular steering": (
+            config.numerics.max_rotation_rms / angular_drift_max
+            if angular_drift_max > 0
             else inf
         ),
         "tumbling": (

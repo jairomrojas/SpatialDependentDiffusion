@@ -4,22 +4,50 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chem-swimmer"
-version = "0.2.0"
-description = "Didactic simulator for a chemically responsive active swimmer in a disk"
+dynamic = ["version"]
+description = "Microscopic and continuum solvers for nutrient-responsive active particles"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.15"
+authors = [
+    { name = "Jairo M. Rojas" },
+    { name = "Naama Brenner" },
+    { name = "Ahmed El Hady" },
+]
+keywords = [
+    "active matter",
+    "chemotaxis",
+    "finite volume",
+    "stochastic simulation",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Physics",
+]
 dependencies = [
-    "numpy>=2.0",
+    "numpy>=2.0,<2.6",
+    "scipy>=1.13",
     "matplotlib>=3.8",
     "pillow>=10",
-    "numba>=0.66,<0.67",
+    "numba>=0.67,<0.68",
     "tqdm>=4.66",
 ]
 
+[project.urls]
+Repository = "https://github.com/jairomrojas/SpatialDependentDiffusion"
+
 [project.optional-dependencies]
 dev = [
-    "pytest>=8",
-    "ruff>=0.9",
+    "pytest>=9.1,<10",
+    "ruff==0.16.6",
+]
+figures = [
+    "cairosvg>=2.7",
 ]
 
 [project.scripts]
@@ -27,6 +55,16 @@ chem-swimmer = "chem_swimmer.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.data-files]
+"share/chem-swimmer/config" = [
+    "config/default.toml",
+    "config/foraging.toml",
+    "config/navigation.toml",
+]
+
+[tool.setuptools.dynamic]
+version = { attr = "chem_swimmer._version.__version__" }
 
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]

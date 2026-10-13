@@ -36,7 +36,6 @@ class NumericsSettings:
 @dataclass(frozen=True)
 class DomainSettings:
     radius: float
-    boundary: str
 
 
 @dataclass(frozen=True)
@@ -51,23 +50,23 @@ class BackgroundKinetics:
     D_T0: float
     D_R0: float
     lambda0: float
-    a1: float
 
 
 @dataclass(frozen=True)
 class Responses:
-    D_T_c: float
-    D_R_c: float
-    v_c: float
-    lambda_c: float
-    D_T_S: float
-    D_R_S: float
-    v_S: float
-    lambda_S: float
+    D_T_eta: float
+    D_R_eta: float
+    v_eta: float
+    lambda_eta: float
+    D_T_zeta: float
+    D_R_zeta: float
+    v_zeta: float
+    lambda_zeta: float
+    chi_theta: float
 
     @classmethod
     def zeros(cls) -> Responses:
-        return cls(*(0.0 for _ in range(8)))
+        return cls(*(0.0 for _ in range(9)))
 
     def only_case(self, case_number: int) -> Responses:
         case = get_case(case_number)
@@ -110,6 +109,7 @@ class DensitySettings:
     max_video_seconds: float
     difference_bandwidth_fraction: float | str = "auto"
     difference_case_percentile: float = 99.5
+    initial_gaussian_sigma: float | str = "auto"
 
 
 @dataclass(frozen=True)
@@ -122,7 +122,7 @@ class PerformanceSettings:
 
 @dataclass(frozen=True)
 class MacroSettings:
-    """Controls for the closed density equation from Theory.pdf."""
+    """Controls for the polar-closed density--polarity finite-volume system."""
 
     cfl_safety: float = 0.90
 
@@ -134,6 +134,7 @@ class ProjectConfig:
     domain: DomainSettings
     initial: InitialState
     kinetics: BackgroundKinetics
+    turning: dict[str, Any]
     responses: Responses
     field: dict[str, Any]
     video: VideoSettings
@@ -147,7 +148,7 @@ class ProjectConfig:
         self,
         *,
         duration: float | None = None,
-        dt: float | None = None,
+        dt: float | str | None = None,
         seed: int | None = None,
         fps: int | None = None,
         engine: str | None = None,
@@ -240,8 +241,6 @@ class ProjectConfig:
             raise ValueError(
                 "domain.radius must equal 1 in the dimensionless formulation"
             )
-        if self.domain.boundary not in {"sliding", "specular", "diffuse"}:
-            raise ValueError("domain.boundary must be sliding, specular, or diffuse")
         x0, y0 = self.initial.position
         if x0 * x0 + y0 * y0 >= self.domain.radius**2:
             raise ValueError("initial.position must lie strictly inside the disk")
@@ -253,7 +252,6 @@ class ProjectConfig:
             base.D_T0,
             base.D_R0,
             base.lambda0,
-            base.a1,
         )
         require_finite(
             "response coefficients",
@@ -270,8 +268,9 @@ class ProjectConfig:
             )
         if not isclose(base.D_T0, 1.0):
             raise ValueError("kinetics.D_T0 must equal 1 in diffusion-time units")
-        if not -1.0 <= base.a1 <= 1.0:
-            raise ValueError("kinetics.a1 must lie in [-1, 1]")
+        from .turning import create_turning_kernel
+
+        create_turning_kernel(self.turning)
 
         require_finite("video.trail_time", self.video.trail_time)
         if self.video.fps < 1 or self.video.dpi < 50:
@@ -300,9 +299,23 @@ class ProjectConfig:
                 raise ValueError("density.ensemble_size must be positive or 'auto'")
         elif density.ensemble_size < 1:
             raise ValueError("density.ensemble_size must be positive or 'auto'")
-        if density.initial_position_distribution not in {"uniform", "fixed"}:
+        if density.initial_position_distribution not in {
+            "uniform",
+            "fixed",
+            "gaussian",
+        }:
             raise ValueError(
-                "density.initial_position_distribution must be 'uniform' or 'fixed'"
+                "density.initial_position_distribution must be "
+                "'uniform', 'fixed', or 'gaussian'"
+            )
+        if isinstance(density.initial_gaussian_sigma, str):
+            if density.initial_gaussian_sigma.lower() != "auto":
+                raise ValueError(
+                    "density.initial_gaussian_sigma must be positive or 'auto'"
+                )
+        elif density.initial_gaussian_sigma <= 0:
+            raise ValueError(
+                "density.initial_gaussian_sigma must be positive or 'auto'"
             )
         if density.initial_heading_distribution not in {"isotropic", "fixed"}:
             raise ValueError(
@@ -380,6 +393,7 @@ def load_config(path: str | Path) -> ProjectConfig:
         "domain",
         "initial",
         "kinetics",
+        "turning",
         "responses",
         "field",
         "video",
@@ -391,8 +405,42 @@ def load_config(path: str | Path) -> ProjectConfig:
     unknown_sections = sorted(set(raw) - allowed_sections)
     if unknown_sections:
         raise ValueError(
-            "unknown top-level configuration section(s): "
-            + ", ".join(unknown_sections)
+            "unknown top-level configuration section(s): " + ", ".join(unknown_sections)
+        )
+
+    if "boundary" in raw.get("domain", {}):
+        raise ValueError(
+            "domain.boundary has been removed: the manuscript sliding wall is "
+            "the only supported boundary condition"
+        )
+    if "a1" in raw.get("kinetics", {}):
+        raise ValueError(
+            "kinetics.a1 has been replaced by the [turning] kernel; use "
+            "kind='wrapped_normal' with P_turn=<old a1> to reproduce the old law"
+        )
+    legacy_responses = sorted(
+        set(raw.get("responses", {}))
+        & {
+            "D_T_c",
+            "D_R_c",
+            "v_c",
+            "lambda_c",
+            "D_T_S",
+            "D_R_S",
+            "v_S",
+            "lambda_S",
+        }
+    )
+    if legacy_responses:
+        raise ValueError(
+            "legacy c/S response notation is no longer accepted; rename "
+            "coefficients to the manuscript eta/zeta notation: "
+            + ", ".join(legacy_responses)
+        )
+    if "turning" not in raw:
+        raise ValueError(
+            "a [turning] table is required; see config/default.toml for the "
+            "wrapped-normal, discrete, tabulated, and user-kernel interface"
         )
 
     density_raw = {
@@ -409,6 +457,7 @@ def load_config(path: str | Path) -> ProjectConfig:
         "max_video_seconds": 10.0,
         "difference_bandwidth_fraction": "auto",
         "difference_case_percentile": 99.5,
+        "initial_gaussian_sigma": "auto",
     }
     density_raw.update(raw.get("density", {}))
     macro_raw = {
@@ -431,6 +480,7 @@ def load_config(path: str | Path) -> ProjectConfig:
             heading=float(raw["initial"]["heading"]),
         ),
         kinetics=BackgroundKinetics(**raw["kinetics"]),
+        turning=dict(raw["turning"]),
         responses=Responses(**raw["responses"]),
         field=dict(raw["field"]),
         video=VideoSettings(**video_raw),

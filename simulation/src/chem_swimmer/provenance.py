@@ -32,9 +32,7 @@ def build_provenance(config_source: str) -> ArtifactProvenance:
         if path.is_file():
             config_text = path.read_text(encoding="utf-8")
     config_sha256 = (
-        hashlib.sha256(config_text.encode("utf-8")).hexdigest()
-        if config_text
-        else ""
+        hashlib.sha256(config_text.encode("utf-8")).hexdigest() if config_text else ""
     )
     runtime_versions = json.dumps(
         {

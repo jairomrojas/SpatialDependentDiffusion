@@ -1,4 +1,18 @@
-"""Numerical reflection laws for the disk boundary."""
+"""Sliding (no-flux) contact at the disk wall, with the heading unchanged.
+
+The manuscript's wall is impermeable but does not reorient a cell: the
+outward normal component of an attempted displacement is removed, and the
+cell continues along the boundary through the surviving tangential motion.
+The heading is an internal state and is never touched, so a cell pressed
+into the wall stays pressed there until rotational diffusion or a tumble
+turns it away.  This is the microscopic realization of the phase-space
+condition ``nu . J_sp = 0`` imposed separately for every heading, and it is
+the wall rule assumed by ``boundary_layer.py``.
+
+Specular reflection of the displacement would instead send such a cell back
+into the bulk while its heading still points outward, which is neither the
+Skorokhod normal-constraint process nor the condition the closure uses.
+"""
 
 from __future__ import annotations
 
@@ -7,7 +21,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-from .angles import heading_vector, wrap_angle
+from .angles import wrap_angle
 
 
 @dataclass(frozen=True)
@@ -45,59 +59,51 @@ def advance_in_disk(
     displacement: NDArray[np.float64],
     heading: float,
     radius: float,
-    mode: str,
-    wall_uniforms: NDArray[np.float64],
+    max_reflections: int = 64,
 ) -> BoundaryResult:
-    """Apply a positional increment and the selected wall law.
+    """Apply one positional increment under the manuscript's sliding wall.
 
-    The straight increment is reflected at each geometric intersection. This
-    is an accurate approximation to the reflected process when ``dt`` is small
-    relative to the wall-curvature and persistence time scales.
+    A straight increment that stays inside the disk is taken as it is.  One
+    that would leave the disk is advanced to the wall; the outward normal
+    part of what remains is absorbed by the impermeability constraint, and
+    the tangential part is travelled as arc length along the boundary.  A
+    single contact therefore consumes the whole increment, and the heading is
+    returned unchanged.  ``max_reflections`` is accepted for backward
+    compatibility and is unused.
     """
 
-    current = np.asarray(position, dtype=float).copy()
-    remaining = np.asarray(displacement, dtype=float).copy()
-    angle = float(heading)
-    hits = 0
+    del max_reflections
+    current = np.asarray(position, dtype=float)
+    increment = np.asarray(displacement, dtype=float)
+    angle = wrap_angle(float(heading))
     tolerance = 2.0e-13 * max(radius, 1.0)
 
-    for reflection_index, wall_uniform in enumerate(wall_uniforms):
-        trial = current + remaining
-        if float(trial @ trial) <= radius**2 * (1.0 + 1.0e-13):
-            norm = float(np.linalg.norm(trial))
-            if norm > radius:
-                trial *= (radius - tolerance) / norm
-            return BoundaryResult(trial, wrap_angle(angle), hits)
+    trial = current + increment
+    if float(trial @ trial) <= radius**2 * (1.0 + 1.0e-13):
+        norm = float(np.linalg.norm(trial))
+        if norm > radius:
+            trial = trial * ((radius - tolerance) / norm)
+        return BoundaryResult(trial, angle, 0)
 
-        fraction = _exit_fraction(current, remaining, radius)
-        hit_point = current + fraction * remaining
-        normal = hit_point / np.linalg.norm(hit_point)
+    fraction = _exit_fraction(current, increment, radius)
+    contact = current + fraction * increment
+    contact_norm = float(np.linalg.norm(contact))
+    if contact_norm == 0.0:
+        raise RuntimeError("degenerate wall contact at the disk center")
+    normal = contact / contact_norm
+    tangent = np.array((-normal[1], normal[0]), dtype=float)
 
-        remaining = (1.0 - fraction) * remaining
-        remaining -= 2.0 * float(remaining @ normal) * normal
-        hits += 1
-
-        if mode == "specular":
-            direction = heading_vector(angle)
-            direction -= 2.0 * float(direction @ normal) * normal
-            angle = float(np.arctan2(direction[1], direction[0]))
-        elif mode == "diffuse":
-            inward_angle = float(np.arctan2(-normal[1], -normal[0]))
-            angle = inward_angle + np.pi * (float(wall_uniform) - 0.5)
-        elif mode != "sliding":
-            raise ValueError(f"unknown boundary mode {mode!r}")
-
-        current = hit_point - tolerance * normal
-
-    # Accept a step that happens to land inside on the final allowed
-    # reflection; otherwise keep the state valid and ask for a smaller dt.
-    final = current + remaining
-    norm = float(np.linalg.norm(final))
-    if norm < radius:
-        return BoundaryResult(final, wrap_angle(angle), hits)
-    if norm >= radius:
-        final *= (radius - tolerance) / norm
-    raise RuntimeError(
-        f"one integration step required more than {len(wall_uniforms)} wall "
-        "reflections; reduce simulation.dt"
+    remaining = (1.0 - fraction) * increment
+    # Absorb the outward normal component; travel the tangential component as
+    # arc length so that sliding conserves the tangential speed exactly.
+    arc = float(remaining @ tangent)
+    rotation = arc / radius
+    cosine, sine = np.cos(rotation), np.sin(rotation)
+    slid = np.array(
+        (
+            normal[0] * cosine - normal[1] * sine,
+            normal[0] * sine + normal[1] * cosine,
+        ),
+        dtype=float,
     )
+    return BoundaryResult(slid * (radius - tolerance), angle, 1)

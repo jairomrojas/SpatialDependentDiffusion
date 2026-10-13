@@ -1,0 +1,209 @@
+# Navigation experiment: a constant nutrient gradient, read at finite lag.
+#
+# The finite-lag observables of the manuscript's "What the population knows"
+# section freeze the gradient direction over the observation window.  That is
+# exact only for a landscape whose gradient is constant, so this configuration
+# uses field.kind = "linear" and every path -- particles, the angular-moment
+# hierarchy, and the closed prediction -- computes the same quantity.
+#
+#   polarity relaxation  gamma1 = D_R0 + lambda0 (1 - P_turn) = 20000
+#   nematic relaxation   gamma2 = 4 D_R0 + lambda0 (1 - P_2_turn) = 54170
+#   run length           v0/gamma1                              = 5.0e-3
+#   effective diffusion  D_eff = D_T0 + v0^2/(2 gamma1)          = 1.25
+#   longest lag          gamma1 tau_max                          = 10
+#   longest excursion    3 sigma_0 + v0 tau + sqrt(4 D_eff tau)  = 0.40
+#
+# The active share of the spreading is a quarter, not a half as in
+# config/default.toml.  That keeps the run from dominating the step over the
+# whole lag range, so the conditional channel stays close to the low
+# signal-to-noise limit in which the closed information expressions are
+# derived, while the transport is still a quarter active.
+
+[simulation]
+# This is t_final directly. There is no physical-time conversion.
+# Common late-time comparison window for Cases 2--9. At this duration the
+# O(t^3) Case 2/4 density signals rise above the particle sampling floor while
+# the concentrated ensemble remains wall-free.
+# The polarity is evolved dynamically; gamma1*t is not used to eliminate it.
+duration = 5.0e-4
+# Paper-quality common timestep for the microscopic and polar-closed PDE runs.
+# This gives 1000 genuine updates over the comparison,
+# while remaining well below every automatically calculated safety limit.
+dt = "auto"
+save_every = 1
+seed = 20260729
+max_lambda_dt = 0.05
+
+[numerics]
+# Maximum angular increment scale per step, in radians: this bounds both the
+# RMS rotational-diffusion increment and deterministic Case-9 steering.
+max_rotation_rms = 0.10
+# Both v dt and sqrt(4 D_T dt) must be below this fraction of the
+# smallest of R, the field widths, and characteristic_length (when supplied).
+max_spatial_step_fraction = 0.05
+# Disk scans and rendered fields use at least this many points per smallest
+# dimensionless length. For kind="user", set characteristic_length explicitly.
+scan_points_per_length = 10
+min_scan_grid = 101
+max_scan_grid = 1601
+characteristic_length = 0.0
+
+[domain]
+radius = 1.0
+# The wall always uses the manuscript's sliding condition: the outward normal
+# component of an attempted displacement is absorbed and the cell continues
+# tangentially along the boundary, while the heading is never changed. There
+# are no alternative boundary laws.
+
+[initial]
+# Every canonical mechanism starts at the disk center with this same heading.
+position = [0.0, 0.0]
+heading = 0.35
+
+[kinetics]
+# Theory-valid visible profile:
+# gamma1=355.8, ell_p=v0/gamma1=0.07496, ell_p/min(sigma)=0.1499.
+v0 = 100.0
+# D_T0 is exactly one because time is measured in R^2/D_T0.
+D_T0 = 1.0
+D_R0 = 10000.0
+lambda0 = 14285.714285714286
+
+[turning]
+# Any achiral, rotation-invariant relative-angle law may be used. The default
+# is a wrapped normal selected by P_turn=E[cos(psi)]. Other built-ins are
+# kind="discrete" (absolute_angles + probabilities) and kind="tabulated"
+# (absolute_angles + density); kind="user" loads a custom kernel factory.
+kind = "wrapped_normal"
+P_turn = 0.30
+
+[responses]
+# All response parameters are non-negative (>= 0):
+# Case 1: D_T_eta >= 0
+D_T_eta = 0.149
+# Case 2: D_R_eta >= 0
+D_R_eta = 26.6
+# Case 3: v_eta >= 0
+v_eta = 4.0
+# Case 4: lambda_eta >= 0
+lambda_eta = 38.0
+
+# Case 5: D_T_zeta >= 0
+D_T_zeta = 0.088
+# Case 6: D_R_zeta >= 0
+D_R_zeta = 15.0
+# Case 7: v_zeta >= 0
+v_zeta = 2.30
+# Case 8: lambda_zeta >= 0
+lambda_zeta = 22.0
+# Case 9: chi_theta >= 0. Positive steering rotates the heading toward grad(eta).
+# It is a signed angular-drift sensitivity, not a rate or diffusivity, so it
+# has no non-negativity bound; the weak-steering condition is
+# |chi_theta| |grad(eta)| / gamma1 << 1.
+chi_theta = 15.0
+
+[field]
+# A constant gradient of magnitude 3 along x.  The admissibility bound of
+# Eq. (admissible) is tightest for Case 5, |D_T_zeta| |grad eta| = 0.264 D_T0,
+# and for Case 1 over the sampled region, |D_T_eta| |delta eta| = 0.20 D_T0.
+kind = "linear"
+baseline = 1.0
+gradient = [3.0, 0.0]
+center = [0.0, 0.0]
+
+[video]
+fps = 30
+dpi = 110
+trail_time = 0.02
+# "auto" uses the same resolution-controlled spacing as the parameter scan.
+field_grid = "auto"
+# "auto" uses Apple VideoToolbox on a supported Mac and libx264 elsewhere.
+codec = "auto"
+bitrate_kbps = 5000
+
+[statistics]
+# MSD is an ensemble average. Replicate m uses common random innovations
+# across all nine cases, so the comparison is paired and variance-reduced.
+ensemble_size = 32
+# 0 chooses an efficient number of local CPU workers; set 1 for serial runs.
+workers = 0
+show_standard_error = true
+
+[density]
+# "auto" selects the minimum M meeting the declared uniform-kernel occupancy
+# floor. This variance heuristic does not replace an M/bandwidth convergence
+# study.
+ensemble_size = 1048576
+# "gaussian" starts the whole ensemble near initial.position, spread over
+# initial_gaussian_sigma -- concentrated like every individual trajectory's
+# literal start there, but not so sharply that it leaves the density
+# gradient O(1). The analytic solver uses the manuscript's padded
+# infinite-plane Fourier/Green solution; a broad release also reduces
+# high-wave-number quadrature error. "fixed" (a numerical Dirac delta) and "uniform"
+# spreads the ensemble homogeneously over the whole disk instead. See
+# the manuscript's Figure 3 discussion for the measured comparison.
+initial_position_distribution = "gaussian"
+# Ten times narrower than the former automatic sigma=1 release. This leaves
+# a nominal 3-sigma radius of 0.3 and a wall margin of 0.7 while remaining
+# resolved by roughly four finite-volume cells.
+initial_gaussian_sigma = 0.10
+# The literal first frame uses the same prescribed isotropic condition p_in=0
+# in all four outputs. At t>0, moment, macro, and analytic all evolve p under
+# the polar closure Q=0; none sets partial_t p to zero. Individual trajectory commands still use
+# initial.heading.
+initial_heading_distribution = "isotropic"
+# The PDF is reported on this square grid inside the unit disk.
+grid_size = 81
+# Gaussian KDE standard deviation h as a fraction of R. h=0.10 spans about
+# four grid cells here: it keeps the broad density morphology resolved while
+# strongly suppressing two-dimensional Monte Carlo texture.
+bandwidth_fraction = 0.10
+# A wider paired KDE suppresses Monte Carlo texture while retaining more than
+# three kernel widths across the narrowest field length sigma=0.5.
+difference_bandwidth_fraction = 0.15
+# The standard movie uses one synchronized micro/macro range for magnitude;
+# the detail movie uses a separate fixed range per case for morphology.
+# This percentile prevents a few extreme pixels from washing out either view.
+difference_case_percentile = 99.5
+# Together with h=0.10, this selects M=1,048,576 and gives roughly 20,972
+# uniform samples per absolute-KDE footprint. The fourfold M refinement over
+# the previous profile halves the Monte Carlo standard error.
+min_samples_per_kernel = 20000
+# Particles per fused native call. Pure scheduling: every replicate carries
+# its own seed, so the batch size never changes a result. Keep it small. The
+# trajectory kernel benefits from larger batches, but the batch is traversed
+# again by histogram, moment, and observable reducers.  A cache-resident batch
+# therefore wins on bandwidth-constrained hosts.  Recheck this choice after a
+# hardware or solver change with scripts/benchmark_performance.py.
+batch_size = 256
+# Maximum number of distinct PDF times; video frames reuse the nearest slice.
+time_slices = 201
+# Density changes more slowly than a particle path; 10 fps avoids 3x redundant
+# full-frame renders while showing the full dimensionless time interval.
+video_fps = 10
+# Direct raster frame width/height in pixels (must be even).
+frame_size = 1200
+# The complete simulated interval is compressed into at most 10 wall seconds.
+max_video_seconds = 10.0
+
+[performance]
+# "auto" selects the Numba/LLVM kernel for built-in fields and falls back to
+# readable Python for a custom field. Use "python" for debugging.
+engine = "auto"
+# 0 picks the thread count automatically, in this order: an explicit CPU
+# affinity mask (so `taskset -c 0-7 python ...` gets exactly 8), then the
+# performance-core count from /sys/devices/cpu_core/cpus, then 3/4 of the
+# available cores. Using every logical core is measurably slower on a hybrid
+# CPU, because the efficiency cores finish their static share late and the
+# whole batch waits on them. The cap also leaves capacity for the host. Use an
+# explicit affinity mask and scripts/benchmark_performance.py when repeatable
+# machine-specific timing matters.
+# Set a positive value to pin it.
+threads = 0
+# Ensemble replicas are processed in bounded-memory native-thread batches.
+msd_batch_size = 8
+progress = true
+
+[macro]
+# Positivity margin for the conservative finite-volume update.
+cfl_safety = 0.90

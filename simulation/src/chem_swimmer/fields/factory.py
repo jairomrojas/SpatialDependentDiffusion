@@ -6,8 +6,8 @@ from typing import Any
 
 import numpy as np
 
-from .analytic import GaussianField, LinearField, MultiGaussianField
 from .base import ChemicalField
+from .builtin import GaussianField, LinearField, MultiGaussianField, PeriodicField
 from .user_field import UserField
 
 
@@ -69,6 +69,39 @@ def create_field(settings: dict[str, Any]) -> ChemicalField:
             gradient_vector=_pair(gradient, "field.gradient"),
             center=_pair(data.get("center", [0.0, 0.0]), "field.center"),
         )
+    if kind == "periodic":
+        _reject_unknown(
+            data,
+            {"baseline", "amplitude", "wavevector", "wavelength", "direction", "phase"},
+            "periodic field",
+        )
+        if "wavevector" in data and ("wavelength" in data or "direction" in data):
+            raise ValueError(
+                "use either field.wavevector or field.wavelength with field.direction"
+            )
+        if "wavevector" in data:
+            wavevector = _pair(data["wavevector"], "field.wavevector")
+        else:
+            if "wavelength" not in data:
+                raise ValueError(
+                    "a periodic field requires field.wavevector or field.wavelength"
+                )
+            wavelength = float(data["wavelength"])
+            if wavelength <= 0.0:
+                raise ValueError("field.wavelength must be positive")
+            direction = np.asarray(
+                _pair(data.get("direction", [1.0, 0.0]), "field.direction"), dtype=float
+            )
+            norm = float(np.hypot(*direction))
+            if norm == 0.0:
+                raise ValueError("field.direction must be nonzero")
+            wavevector = tuple(2.0 * np.pi / wavelength * direction / norm)
+        return PeriodicField(
+            baseline=float(data.get("baseline", 1.0)),
+            amplitude=float(data["amplitude"]),
+            wavevector=wavevector,
+            phase=float(data.get("phase", 0.0)),
+        )
     if kind == "multi_gaussian":
         _reject_unknown(data, {"baseline", "sources"}, "multi-Gaussian field")
         baseline = float(data["baseline"])
@@ -82,5 +115,6 @@ def create_field(settings: dict[str, Any]) -> ChemicalField:
         return UserField(baseline=float(data.get("baseline", 1.0)))
 
     raise ValueError(
-        f"unknown field kind {kind!r}; choose gaussian, linear, multi_gaussian, or user"
+        f"unknown field kind {kind!r}; choose gaussian, linear, periodic, "
+        "multi_gaussian, or user"
     )

@@ -2,20 +2,22 @@
 
 ## Development setup
 
-Use an isolated Python 3.11 or newer environment:
+On the reference workstation, use the global Pixi environment named
+`physics`. The `python` shim exposed by Pixi must resolve to that environment:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ".[dev]"
+pixi global list
+python -c "import sys; print(sys.prefix)"
+PYTHONPATH=src python -m pytest -q
 python -m ruff check .
-python -m pytest -q
+python -m ruff format --check .
 ```
 
-The package uses a `src/` layout. Install it in editable mode before running
-the tests so imports exercise the packaged code path. `python run.py ...`
-remains available as a convenience for collaborators who have installed the
-runtime dependencies but not the package itself.
+External collaborators without that workstation environment can create a
+virtual environment and install `.[dev]`. The package uses a `src/` layout;
+CI installs it in editable mode so imports also exercise the packaged path.
+`python run.py ...` remains available in the mandatory global environment via
+the repository-local `PYTHONPATH` workflow.
 
 ## Scientific change checklist
 
@@ -26,7 +28,7 @@ estimation, or the finite-volume solver should include:
 2. fixed-seed reproducibility where applicable;
 3. a refinement check in \(dt\), grid spacing, \(M\), or bandwidth;
 4. conservation/nonnegativity checks for probability densities;
-5. an update to `docs/mathematical_guide.md` when an output field or
+5. an update to `../manuscript/main.tex` when an equation or scientific
    interpretation changes;
 6. regenerated artifacts only after all checks pass.
 
@@ -37,11 +39,12 @@ refinement.
 
 ## Generated files
 
-`output/`, caches, compiled Numba artifacts, and local virtual environments
-are ignored by version control. Share large generated results as a release
-artifact or data deposit, keeping the NPZ and CSV files together with the
-figures/videos. Density NPZ files embed their TOML input and runtime
-provenance.
+Raw files below `results/data/`, videos, diagnostic frame sequences, caches,
+compiled Numba artifacts, and local virtual environments are ignored by
+version control. Share large generated results as a release artifact or data
+deposit, keeping NPZ and CSV files together with their figures. Density NPZ
+files embed their TOML input and runtime provenance. Only compact figures and
+summary metrics intended for collaborators belong in curated `results/`.
 
 ## Public release
 

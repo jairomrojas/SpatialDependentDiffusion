@@ -1,4 +1,10 @@
-"""Closed, dimensionless density evolution from equations (16)--(20)."""
+"""Macroscopic density--polarity system with the polar closure ``Q=0``.
+
+The public ``macro`` strategy follows ``manuscript/main.tex`` and evolves density
+and both components of polarity.  The older scalar Scharfetter--Gummel helpers
+remain below as explicitly named investigations of the additional adiabatic
+reduction, but they are not used by :func:`compute_macroscopic_pdf`.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +19,7 @@ from .config import ProjectConfig
 from .density import (
     PDF_CASES,
     PositionPDFResult,
+    prescribed_initial_density_grid,
     resolve_difference_bandwidth,
     smooth_density_stack,
 )
@@ -21,6 +28,7 @@ from .kinetics import macroscopic_coefficients
 from .numerics import inferred_characteristic_length
 from .progress import progress_bar
 from .provenance import build_provenance
+from .turning import create_turning_kernel
 
 
 @dataclass(frozen=True)
@@ -98,17 +106,30 @@ def _disk_grid(
 def _closed_coefficients(
     config: ProjectConfig,
 ) -> tuple[float, tuple[float, ...]]:
-    gamma0 = config.kinetics.D_R0 + config.kinetics.lambda0 * (1.0 - config.kinetics.a1)
-    if gamma0 <= 0.0:
+    turning_kernel = create_turning_kernel(config.turning)
+    gamma1 = config.kinetics.D_R0 + config.kinetics.lambda0 * (
+        1.0 - turning_kernel.P_turn
+    )
+    if gamma1 <= 0.0:
         raise ValueError(
-            "--macro requires gamma0 = D_R0 + lambda0(1-a1) > 0 because the "
+            "--macro requires gamma1 = D_R0 + lambda0(1-P_turn) > 0 because the "
             "closed long-time density equation in Theory.pdf assumes angular "
             "relaxation. These zero values remain valid with --micro."
+        )
+    gamma2 = 4.0 * config.kinetics.D_R0 + config.kinetics.lambda0 * (
+        1.0 - turning_kernel.P_2_turn
+    )
+    if gamma2 <= 0.0:
+        raise ValueError(
+            "--macro requires gamma2 = 4 D_R0 + lambda0(1-P_2_turn) > 0 "
+            "because the manuscript closure also eliminates the nematic mode. "
+            "These parameters remain valid with --micro."
         )
     coefficients = [
         macroscopic_coefficients(
             config.kinetics,
             config.responses.only_case(case_number),
+            turning_kernel.P_turn,
         )
         for case_number in PDF_CASES
     ]
@@ -133,7 +154,7 @@ def _closed_coefficients(
 
 
 def _transport_rates(
-    concentration: NDArray[np.float64],
+    eta: NDArray[np.float64],
     mask: NDArray[np.bool_],
     active_ids: NDArray[np.int64],
     spacing: float,
@@ -154,7 +175,7 @@ def _transport_rates(
     mobility_array = np.asarray(mobilities, dtype=float)[:, None, None]
 
     horizontal = mask[:, :-1] & mask[:, 1:]
-    delta_x = concentration[:, 1:] - concentration[:, :-1]
+    delta_x = eta[:, 1:] - eta[:, :-1]
     pe_x = mobility_array * delta_x[None] / effective_diffusivity
     left_to_right = effective_diffusivity / spacing**2 * _bernoulli(-pe_x)
     right_to_left = effective_diffusivity / spacing**2 * _bernoulli(pe_x)
@@ -172,7 +193,7 @@ def _transport_rates(
         incoming[case_index, left_ids, 1] = rl
 
     vertical = mask[:-1, :] & mask[1:, :]
-    delta_y = concentration[1:, :] - concentration[:-1, :]
+    delta_y = eta[1:, :] - eta[:-1, :]
     pe_y = mobility_array * delta_y[None] / effective_diffusivity
     bottom_to_top = effective_diffusivity / spacing**2 * _bernoulli(-pe_y)
     top_to_bottom = effective_diffusivity / spacing**2 * _bernoulli(pe_y)
@@ -194,28 +215,20 @@ def _transport_rates(
 
 def _initial_density(
     config: ProjectConfig,
+    field: ChemicalField,
     grid_points: NDArray[np.float64],
     mask: NDArray[np.bool_],
     spacing: float,
 ) -> NDArray[np.float64]:
     """Represent the configured initial spatial ensemble on finite volumes."""
 
-    density = np.zeros(mask.shape, dtype=float)
-    if config.density.initial_position_distribution == "uniform":
-        density[mask] = 1.0 / (np.count_nonzero(mask) * spacing**2)
-        return density
-    center = np.asarray(config.initial.position, dtype=float)
-    grid_size = mask.shape[0]
-    column = min(grid_size - 1, max(0, int((center[0] + 1.0) * grid_size / 2.0)))
-    row = min(grid_size - 1, max(0, int((center[1] + 1.0) * grid_size / 2.0)))
-    if mask[row, column]:
-        initial_cell = (row, column)
-    else:
-        squared_distance = np.sum((grid_points - center) ** 2, axis=-1)
-        squared_distance[~mask] = np.inf
-        initial_cell = np.unravel_index(np.argmin(squared_distance), mask.shape)
-    density[initial_cell] = 1.0 / spacing**2
-    return density
+    return prescribed_initial_density_grid(
+        config,
+        field,
+        grid_points,
+        mask,
+        spacing,
+    )
 
 
 @njit(cache=True, parallel=True)
@@ -226,13 +239,13 @@ def _integrate_compact_density(
     outgoing: NDArray[np.float64],
     dt: float,
     save_steps: NDArray[np.int64],
-) -> NDArray[np.float32]:
+) -> NDArray[np.float64]:
     """Advance all cases in parallel with a positivity-preserving Euler step."""
 
     case_count, active_count = outgoing.shape
     saved = np.empty(
         (case_count, len(save_steps), active_count),
-        dtype=np.float32,
+        dtype=np.float64,
     )
     for case_index in prange(case_count):
         current = initial.copy()
@@ -263,7 +276,7 @@ def _integrate_compact_density(
     return saved
 
 
-def build_macroscopic_plan(
+def build_equilibrium_plan(
     config: ProjectConfig,
     field: ChemicalField | None = None,
 ) -> tuple[
@@ -281,19 +294,17 @@ def build_macroscopic_plan(
     grid_size = _macro_grid_size(config, field)
     coordinates, grid_points, mask, active_ids = _disk_grid(grid_size)
     spacing = 2.0 / grid_size
-    concentration, gradient = field.value_and_gradient(grid_points)
-    concentration = np.asarray(concentration, dtype=float)
+    eta, gradient = field.value_and_gradient(grid_points)
+    eta = np.asarray(eta, dtype=float)
     gradient = np.asarray(gradient, dtype=float)
-    if concentration.shape != mask.shape or gradient.shape != (*mask.shape, 2):
+    if eta.shape != mask.shape or gradient.shape != (*mask.shape, 2):
         raise ValueError("the chemical field returned incompatible grid shapes")
-    if not np.all(np.isfinite(concentration[mask])) or not np.all(
-        np.isfinite(gradient[mask])
-    ):
+    if not np.all(np.isfinite(eta[mask])) or not np.all(np.isfinite(gradient[mask])):
         raise ValueError("the chemical field must be finite throughout the disk")
 
     effective_diffusivity, mobilities = _closed_coefficients(config)
     neighbors, incoming, outgoing = _transport_rates(
-        concentration,
+        eta,
         mask,
         active_ids,
         spacing,
@@ -345,7 +356,7 @@ def build_macroscopic_plan(
     return plan, coordinates, grid_points, mask, neighbors, incoming, outgoing
 
 
-def macroscopic_timestep_report(plan: MacroscopicPlan, config: ProjectConfig) -> str:
+def equilibrium_timestep_report(plan: MacroscopicPlan, config: ProjectConfig) -> str:
     """Human-readable formulas and values used to select the macro timestep."""
 
     drift = "infinity" if np.isinf(plan.drift_dt) else f"{plan.drift_dt:.6g}"
@@ -355,7 +366,7 @@ def macroscopic_timestep_report(plan: MacroscopicPlan, config: ProjectConfig) ->
     )
     return (
         "\nClosed density evolution (Theory.pdf, equations 16-20)\n"
-        "  partial_t p = div(D_eff grad(p) - kappa p grad(c)),  n.J = 0\n"
+        "  partial_t rho = div(D_eff grad(rho) - kappa rho grad(eta)),  n.J_rho = 0\n"
         f"  grid={plan.grid_size}x{plan.grid_size}, Delta(x)={plan.spacing:.6g}\n"
         "  The grid satisfies both the narrowest-field resolution target "
         "and at least two cells per reported KDE width.\n"
@@ -366,7 +377,7 @@ def macroscopic_timestep_report(plan: MacroscopicPlan, config: ProjectConfig) ->
         "  ----------------------  ---------------------------------------  -----------\n"
         f"  diffusion               Delta(x)^2 / (4 D_eff)                 "
         f"{plan.diffusion_dt:.6g}\n"
-        "  chemotactic drift       Delta(x) / max(|kappa| |grad(c)|_1)     "
+        "  nutrient drift          Delta(x) / max(|kappa| |grad(eta)|_1)   "
         f"{drift}\n"
         "  combined FV positivity  1 / max_cell(sum outgoing face rates)  "
         f"{plan.positivity_dt:.6g}\n"
@@ -379,13 +390,13 @@ def macroscopic_timestep_report(plan: MacroscopicPlan, config: ProjectConfig) ->
     )
 
 
-def compute_macroscopic_pdf(
+def compute_equilibrium_pdf(
     config: ProjectConfig,
     *,
     field: ChemicalField | None = None,
     show_progress: bool = False,
 ) -> PositionPDFResult:
-    """Solve the closed dimensionless density equation for Cases 0--8."""
+    """Solve the closed dimensionless density equation for Cases 0--9."""
 
     field = create_field(config.field) if field is None else field
     (
@@ -396,16 +407,16 @@ def compute_macroscopic_pdf(
         neighbors,
         incoming,
         outgoing,
-    ) = build_macroscopic_plan(config, field)
+    ) = build_equilibrium_plan(config, field)
 
-    initial_grid = _initial_density(config, grid_points, mask, plan.spacing)
+    initial_grid = _initial_density(config, field, grid_points, mask, plan.spacing)
     initial = initial_grid[mask]
     from .accelerated import configure_threads
 
     configure_threads(config, len(PDF_CASES))
     bar = progress_bar(
         total=len(PDF_CASES),
-        description="Cases 0-8 closed density equation",
+        description="Cases 0-9 closed density equation",
         unit="case",
         enabled=show_progress,
     )
@@ -432,7 +443,7 @@ def compute_macroscopic_pdf(
             plan.grid_size,
             plan.grid_size,
         ),
-        dtype=np.float32,
+        dtype=np.float64,
     )
     raw_density[:, :, mask] = compact
     masses = np.sum(raw_density, axis=(-2, -1), dtype=np.float64) * plan.spacing**2
@@ -453,6 +464,15 @@ def compute_macroscopic_pdf(
     )
     if not np.array_equal(coordinates, smoothed_coordinates):
         raise RuntimeError("macroscopic KDE produced an inconsistent grid")
+    initial_density, initial_coordinates = smooth_density_stack(
+        initial_grid[None, None],
+        density_settings,
+    )
+    if not np.array_equal(coordinates, initial_coordinates):
+        raise RuntimeError(
+            "macroscopic initial-density estimator produced an inconsistent grid"
+        )
+    density[:, 0] = initial_density[0, 0]
     difference_bandwidth = resolve_difference_bandwidth(
         density_settings,
         inferred_characteristic_length(config, field),
@@ -465,17 +485,30 @@ def compute_macroscopic_pdf(
     ):
         difference_density = density
     else:
+        difference_settings = replace(
+            density_settings,
+            bandwidth_fraction=difference_bandwidth,
+        )
         difference_density, difference_coordinates = smooth_density_stack(
             raw_density,
-            replace(
-                density_settings,
-                bandwidth_fraction=difference_bandwidth,
-            ),
+            difference_settings,
         )
         if not np.array_equal(coordinates, difference_coordinates):
             raise RuntimeError(
                 "macroscopic difference KDE produced an inconsistent grid"
             )
+        initial_difference_density, initial_difference_coordinates = (
+            smooth_density_stack(
+                initial_grid[None, None],
+                difference_settings,
+            )
+        )
+        if not np.array_equal(coordinates, initial_difference_coordinates):
+            raise RuntimeError(
+                "macroscopic difference initial-density estimator produced an "
+                "inconsistent grid"
+            )
+        difference_density[:, 0] = initial_difference_density[0, 0]
 
     times = plan.save_steps.astype(float) * plan.dt
     times[-1] = config.simulation.duration
@@ -499,3 +532,44 @@ def compute_macroscopic_pdf(
         config_sha256=provenance.config_sha256,
         runtime_versions=provenance.runtime_versions,
     )
+
+
+# ---------------------------------------------------------------------------
+# Current manuscript public API
+# ---------------------------------------------------------------------------
+def build_macroscopic_plan(
+    config: ProjectConfig,
+    field: ChemicalField | None = None,
+):
+    """Build the finite-volume plan for the dynamic ``(rho,p)`` system."""
+
+    # Imported lazily because moment.py reuses the disk-grid helpers above.
+    from .moment import build_moment_plan
+
+    return build_moment_plan(config, field)
+
+
+def macroscopic_timestep_report(plan, config: ProjectConfig) -> str:
+    """Describe the macroscopic polar-closed timestep and retained fields."""
+
+    from .moment import moment_timestep_report
+
+    return moment_timestep_report(plan, config).replace(
+        "Density--polarity moment evolution",
+        "Macroscopic density--polarity evolution",
+        1,
+    )
+
+
+def compute_macroscopic_pdf(
+    config: ProjectConfig,
+    *,
+    field: ChemicalField | None = None,
+    show_progress: bool = False,
+) -> PositionPDFResult:
+    """Solve the manuscript macroscopic equations with dynamic ``p`` and ``Q=0``."""
+
+    from .moment import compute_moment_pdf
+
+    result = compute_moment_pdf(config, field=field, show_progress=show_progress)
+    return replace(result, method="macro")

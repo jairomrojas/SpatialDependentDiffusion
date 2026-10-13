@@ -1,6 +1,6 @@
 """One obvious place to define an arbitrary chemical landscape.
 
-Select ``kind = "user"`` in ``configs/default.toml``. Edit only the two
+Select ``kind = "user"`` in ``config/default.toml``. Edit only the two
 functions below. Both functions must accept a NumPy array whose final
 dimension is two; this makes the same code work for one particle and for the
 background image in the video.
@@ -35,9 +35,7 @@ class UserField(ChemicalField):
         # the origin and would make the advertised smooth field singular there.
         radius_squared = x * x + y * y
         fourfold = x**4 - 6.0 * x * x * y * y + y**4
-        result = self.baseline + np.exp(-radius_squared / 5.0) * (
-            1.0 + 0.15 * fourfold
-        )
+        result = self.baseline + np.exp(-radius_squared / 5.0) * (1.0 + 0.15 * fourfold)
         return float(result) if np.ndim(result) == 0 else result
 
     def gradient(self, position: ArrayLike) -> NDArray[np.float64]:

@@ -1,164 +1,109 @@
-# Apple-Silicon performance analysis
+# Performance and resolution guide
 
-## Measured bottleneck
+## Recommended profile
 
-Profiling the original readable implementation for eight 30-second cases
-produced about 5.9 million Python calls in 3.53 seconds under the profiler.
-The dominant cumulative costs were:
+The production path is the Numba CPU engine with bounded batches. On the
+20-vCPU WSL 2 host used for this audit, start with 8 native threads and a batch
+of 256 particles, then measure nearby settings with the repository benchmark.
+Do not assume that Linux CPU numbers 0--7 are physical P-cores: WSL exposes
+virtual CPUs, and the host hypervisor retains the final placement decision.^1
 
-| Function group | Cumulative time |
-|---|---:|
-| field evaluation | 2.20 s |
-| Gaussian value and gradient | 1.60 s |
-| disk reflection | 0.77 s |
-| kinetic response evaluation | 0.51 s |
+```bash
+cd simulation
+OMP_NUM_THREADS=8 OMP_PROC_BIND=close OMP_PLACES=cores \
+  taskset -c 0-7 python scripts/benchmark_performance.py \
+  --threads 8 --batch-size 64 256 1024 \
+  --output results/benchmark-arrow-lake.json
+```
 
-The algorithm is a scalar causal recurrence: state at step `n+1` depends on
-state at step `n`. BLAS tuning cannot remove this Python dispatch overhead.
+Keep the project on the WSL ext4 virtual disk rather than `/mnt/c`; the current
+workspace already satisfies that condition. On the reference workstation,
+heavy jobs run under `science-run` inside a shared memory slice capped at
+6 GiB (5 GiB soft limit, 1 GiB swap; updated 2026-10-13). Tests and individual
+production stages fit; one full microscopic archive (~4.8 GB once decompressed)
+nearly fills it, and loading two archives in one job will be killed.
 
-## Implemented execution strategy
+## Measured optimization
 
-### Native sequential kernel
+The density estimator applies the same one-dimensional Gaussian kernel along
+both spatial axes. The former implementation materialized a strided sliding
+window and dispatched `tensordot`. A representative axis over a
+`10 x 101 x 141 x 141` float64 stack measured 27.995 s. SciPy's compiled
+`ndimage.convolve1d`, using the same weights, centered origin, and zero
+extension, measured 1.367 s: a 20.5x kernel-level speedup with maximum absolute
+difference `2.22e-16`. SciPy explicitly supports the output dtype and constant
+boundary mode used here.^2
 
-`accelerated.py` compiles the complete Itô step, chemical-field evaluation,
-kinetic response, disk reflection, and tumble logic with
-`numba.njit(cache=True)`. Numba's documentation identifies nopython mode as the
-key to optimal compiled performance and explicitly notes that loops are
-appropriate in compiled code:
+After replacement, the complete two-axis density smoothing and normalization
+for that stack measured 0.684 s. The optimization has a dedicated convolution
+equivalence test and a uniform-disk boundary-correction invariant. Numba output
+reordering was also removed for the normal all-distinct response matrix, which
+avoids copying positions, headings, and tumble counts after every batch.
 
-- [Numba performance tips](https://numba.readthedocs.io/en/stable/user/performance-tips.html)
-- [Numba JIT documentation](https://numba.readthedocs.io/en/stable/user/jit.html)
+An indicative one-run end-to-end sweep with 4,096 particles, 100 integration
+steps, 101 saved slices, and a 141-square grid measured 13.322 s (batch 64),
+11.766 s (batch 256), and 11.687 s (batch 1,024). Those numbers are not a
+universal ranking: the production run is longer, thermal state matters, and
+KDE finalization is batch-independent. Use at least three repeats for a tuning
+decision.
 
-No `fastmath` option is used. It can relax IEEE floating-point semantics, which
-is undesirable when the optimized trajectory is expected to match the
-reference trajectory exactly.
+## Memory model
 
-### Native-thread ensemble parallelism
+For `C` cases, `T` saved times, grid width `G`, and float width `B`, one field
+stack costs `C*T*G*G*B` bytes. At the canonical `C=10`, `T=301`, `G=141`, and
+float64, each stack is 478,734,480 bytes (456.6 MiB). Grid refinement therefore
+costs quadratically: doubling `G` requires four times the field memory and
+roughly four times the spatial post-processing work.
 
-One trajectory must remain sequential, but independent `(replicate, case)`
-pairs are embarrassingly parallel. The ensemble kernel uses `prange` with
-`parallel=True`, writes each task to a disjoint output slice, and therefore has
-no reductions or races:
+The microscopic archive contains density, polarity, nematic, response, and
+split-half error fields. Its current compressed file is about 3.4 GB and
+expands to roughly 4.8 GB of array payload. The macro and analytic archives are
+about 2.0 GB compressed each and roughly 2.9 GB raw each. These are valid local
+caches, but they should not be committed. NumPy notes that compressed NPZ is a
+ZIP of NPY members and recommends memory-mapped NPY or chunked formats for
+arrays too large to fit comfortably in memory.^3
 
-- [Numba explicit parallel loops](https://numba.readthedocs.io/en/stable/user/parallel.html)
-- [Numba threading layers](https://numba.readthedocs.io/en/stable/user/threading-layer.html)
+Practical controls:
 
-This avoids CPython's GIL without spawning a full Python interpreter per
-replica. The current environment provides the TBB threading layer and eight
-hardware threads. Numba also officially supports OS X 11+ on M1/Arm64; version
-0.66 supports Python 3.10 through 3.14 and NumPy 2.0 through 2.4:
+- Reduce `density.time_slices` when only final or sparse reporting times are
+  needed. This does not change the integration timestep.
+- Keep `density.batch_size` small enough that positions, headings, and tumble
+  counts remain cache-resident. At 256 particles, 10 cases, and 301 slices,
+  those three arrays occupy about 20.7 MiB before temporary reducers.
+- Increase ensemble size only when the paired standard error or explicit
+  sampling-floor audit requires it. Four times as many independent particles
+  halves Monte Carlo standard error.
+- Increase `grid_size` only with a grid-convergence result. More pixels do not
+  recover structure already removed by the observation bandwidth.
+- Keep raw archives on the Linux filesystem. Publish validated archives as a
+  versioned release or data deposit, not inside Git history.^4
 
-- [Numba installation and compatibility](https://numba.readthedocs.io/en/stable/user/installing.html)
+## CUDA assessment
 
-The MSD calculation runs in bounded-memory batches. `msd_batch_size = 8`
-keeps all cores occupied on this M1 Pro without allocating innovations for the
-entire ensemble at once.
+The RTX 5070 is not currently used by `chem_swimmer`; installing PyTorch or a
+CUDA runtime does not accelerate a CPU-only Numba kernel. The modern
+`numba-cuda` package supports CUDA 12 devices through compute capability 12.1,
+so sm_120 is supported by the toolchain.^5 However, Numba-CUDA is now in
+maintenance mode and its maintainers direct new development toward
+Numba-CUDA-MLIR.^6
 
-### Common-noise reproducibility
+A worthwhile GPU backend must keep the full loop on device: generate random
+innovations, advance all paired cases, and reduce directly into histograms and
+observables. Copying every saved particle state over PCIe would discard much of
+the benefit; NVIDIA's guidance prioritizes minimizing host/device transfers,
+coalescing global accesses, and avoiding long divergent branches.^7 The
+sliding-wall and rejection/tumble branches make this a validation project, not
+a decorator change. Required acceptance gates are fixed-seed distributional
+parity, mass conservation, boundary invariants, response-sign tests, and an
+end-to-end speedup including transfers. Until that work is funded and measured,
+the CPU path remains the reliable production backend.
 
-Individual-trajectory and MSD random arrays are generated by NumPy before
-entering compiled code, so the readable and native trajectory kernels receive
-identical innovations. The large PDF calculation instead uses a fused native
-kernel: each parallel task owns one particle, generates each innovation once,
-and immediately applies it to all nine cases. This retains paired
-common-random-number comparisons without allocating arrays proportional to
-`batch_size * steps`.
+## Sources
 
-The PDF kernel also collapses exact duplicate kinetic laws. If a case's active
-response coefficient is zero, its path is exactly Case 0 and is computed only
-once before being mapped back to the labeled panel. A compiled histogram loop
-avoids the large indexing temporaries and repeated dispatch cost of
-`numpy.add.at`.
-
-For sliding and specular walls, the fused PDF kernel no longer generates
-unused diffuse-reflection random numbers. The geometric collision guard now
-allows 16 reflections per increment; ordinary resolved steps require one or
-two, while the larger guard safely handles rare near-tangent increments.
-
-## Why not Apple Accelerate or the GPU?
-
-Apple Accelerate and modern NumPy can be very effective for large vector,
-matrix, FFT, and reduction workloads:
-
-- [Apple Accelerate overview](https://developer.apple.com/accelerate/)
-- [NumPy Accelerate support](https://numpy.org/doc/1.26/release/1.26.0-notes.html)
-- [NumPy Arm SIMD dispatch](https://numpy.org/doc/2.4/reference/simd/index.html)
-
-The installed NumPy build already exposes Arm NEON/ASIMD dispatch. However,
-this simulator's main recurrence performs small scalar operations with
-branches and state dependence rather than matrix multiplication, so BLAS and
-LAPACK are not the bottleneck.
-
-Apple's Metal documentation describes GPU compute in terms of large
-data-parallel thread grids and tuned data-parallel primitives:
-
-- [Metal Performance Shaders](https://developer.apple.com/documentation/metalperformanceshaders)
-- [Metal overview](https://developer.apple.com/metal/)
-
-An ensemble can be parallel, but after native CPU compilation the tested
-32-replica workload is already tiny compared with Matplotlib rendering.
-Moving each time step through a tensor graph or custom Metal kernel would add
-data-transfer, compilation, and maintenance costs without helping the single
-trajectory's causal dependency. A Metal implementation becomes worth
-reconsidering only for ensembles many orders of magnitude larger or for a
-fully GPU-resident analysis pipeline.
-
-## Video encoding
-
-`codec = "auto"` probes FFmpeg's `h264_videotoolbox` encoder on macOS and uses
-it when an actual compression session can be created. It falls back to
-`libx264` if VideoToolbox is unavailable, such as in a restricted remote
-session. FFmpeg documents VideoToolbox as the Apple hardware-acceleration
-route:
-
-- [FFmpeg documentation](https://www.ffmpeg.org/ffmpeg.html)
-
-Matplotlib drawing, rather than H.264 compression, is generally the remaining
-bottleneck. Frames are now sent directly to `FFMpegWriter` in a counted loop
-instead of through `FuncAnimation.save`, allowing accurate frame-level ETA.
-
-## Progress overhead
-
-Progress uses `tqdm` with a 150 ms minimum refresh interval. Its official
-documentation reports roughly 60 ns iterator overhead and adaptive display
-skipping:
-
-- [tqdm documentation](https://tqdm.github.io/)
-
-Progress is shown separately for canonical trajectories, ensemble replicas,
-and rendered frames. Disable it with `--no-progress` or
-`performance.progress = false`.
-
-## Local benchmark
-
-Warm-cache measurements in the supplied M1 environment:
-
-| Workload | Reference | Native | Speed-up |
-|---|---:|---:|---:|
-| Eight cases, 30 s, `dt=0.002` | 2.2678 s | 0.007863 s | 288.4x |
-| MSD, eight cases x eight replicas, 3 s | 1.7902 s | 0.002621 s | 683x |
-
-These numbers exclude first-call JIT compilation and video rendering. Exact
-speed depends on thermals, other applications, field complexity, wall-contact
-frequency, and the active Python environment.
-
-For the earlier July 2026 performance baseline on the 8-core M1 Pro
-(6 performance and 2 efficiency cores), `M=8192`, 301 saved times, and
-2,138 integration steps:
-
-| PDF stage | Before | After |
-|---|---:|---:|
-| Cases 0-8 density computation | 5.37 s | 1.96 s |
-| Compressed NPZ write | — | 1.22 s |
-| 100-frame, 1200 px MP4 (`libx264`) | — | 1.54 s |
-
-The density computation is about 2.7x faster. Its former roughly 591 MiB
-step-sized noise allocation per 32-particle batch is gone. The default PDF
-batch is now 256 particles (about 11 MiB of saved positions at 301 times),
-reducing Python-to-native calls while giving TBB substantially more tasks than
-hardware cores.
-
-For the audited `default.toml` run (`M=16384`, 20,469 steps), particle
-evolution took about 24.6 s and the complete two-KDE/two-video pipeline took
-34.2 s. The direct difference KDE adds quality without another stochastic
-simulation.
+1. Microsoft WSL, “[Hybrid CPU discussion #9190](https://github.com/microsoft/WSL/discussions/9190),” 2022--2024; Microsoft WSL, “[Hybrid topology issue #13272](https://github.com/microsoft/WSL/issues/13272),” 2025.
+2. SciPy, “[`scipy.ndimage.convolve1d`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.convolve1d.html),” SciPy 1.18 documentation.
+3. NumPy, “[Reading and writing files](https://numpy.org/doc/stable/user/how-to-io.html),” NumPy 2.5 documentation.
+4. GitHub, “[Repository limits](https://docs.github.com/en/repositories/creating-and-managing-repositories/repository-limits),” accessed September 2026.
+5. NVIDIA, “[Numba-CUDA installation](https://nvidia.github.io/numba-cuda/user/installation.html),” accessed September 2026.
+6. NVIDIA, “[Numba-CUDA maintenance notice](https://nvidia.github.io/numba-cuda/),” accessed September 2026.
+7. NVIDIA, “[Blackwell tuning guide](https://docs.nvidia.com/cuda/archive/12.8.0/blackwell-tuning-guide/index.html),” CUDA 12.8; NVIDIA, “[CUDA best practices](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/),” accessed September 2026.

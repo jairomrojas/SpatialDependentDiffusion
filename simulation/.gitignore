@@ -5,8 +5,15 @@ __pycache__/
 *.py[cod]
 *.nb[ci]
 .venv/
+.pixi/
+*.egg-info/
 .cache/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+build/
+dist/
 tmp/
-output/
+results/data/
+results/videos/
+results/figures/frames_vs_time/

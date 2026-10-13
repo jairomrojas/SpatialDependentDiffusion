@@ -10,9 +10,9 @@
 **/.ruff_cache/
 **/.cache/
 
-# Local coding-agent state
-.agents/
-.codex/
+# Coding-agent directories can hold shared rules or skills; ignore only local
+# state files (machine-local ignores live in .git/info/exclude).
+.claude/settings.local.json
 
 # Reproducible heavyweight simulation outputs
 simulation/results/data/

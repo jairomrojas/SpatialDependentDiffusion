@@ -16,12 +16,9 @@ class Innovations:
     tumble_event: NDArray[np.float64]
     tumble_normal: NDArray[np.float64]
     tumble_uniform: NDArray[np.float64]
-    wall_uniform: NDArray[np.float64]
 
     @classmethod
-    def generate(
-        cls, steps: int, seed: int, max_wall_reflections: int = 16
-    ) -> Innovations:
+    def generate(cls, steps: int, seed: int) -> Innovations:
         rng = np.random.default_rng(seed)
         return cls(
             translation=rng.standard_normal((steps, 2)),
@@ -29,7 +26,6 @@ class Innovations:
             tumble_event=rng.random(steps),
             tumble_normal=rng.standard_normal(steps),
             tumble_uniform=rng.random(steps),
-            wall_uniform=rng.random((steps, max_wall_reflections)),
         )
 
 
@@ -50,8 +46,9 @@ def _density_particle_draws_kernel(
     initial_y: float,
     initial_heading: float,
     uniform_initial_position: bool,
+    gaussian_initial_position: bool,
+    gaussian_sigma: float,
     isotropic_initial_heading: bool,
-    diffuse_boundary: bool,
 ):
     """Mirror the fused Numba kernel's scalar draw order exactly."""
 
@@ -63,6 +60,14 @@ def _density_particle_draws_kernel(
         polar_angle = 2.0 * np.pi * np.random.random()
         position_x = radial_coordinate * np.cos(polar_angle)
         position_y = radial_coordinate * np.sin(polar_angle)
+    elif gaussian_initial_position:
+        while True:
+            candidate_x = initial_x + gaussian_sigma * np.random.standard_normal()
+            candidate_y = initial_y + gaussian_sigma * np.random.standard_normal()
+            if candidate_x * candidate_x + candidate_y * candidate_y <= 1.0:
+                position_x = candidate_x
+                position_y = candidate_y
+                break
     heading = initial_heading % (2.0 * np.pi)
     if isotropic_initial_heading:
         heading = 2.0 * np.pi * np.random.random()
@@ -72,7 +77,6 @@ def _density_particle_draws_kernel(
     tumble_event = np.empty(steps, dtype=np.float64)
     tumble_normal = np.empty(steps, dtype=np.float64)
     tumble_uniform = np.empty(steps, dtype=np.float64)
-    wall_uniform = np.zeros((steps, 64), dtype=np.float64)
     for step in range(steps):
         translation[step, 0] = np.random.standard_normal()
         translation[step, 1] = np.random.standard_normal()
@@ -80,9 +84,6 @@ def _density_particle_draws_kernel(
         tumble_event[step] = np.random.random()
         tumble_normal[step] = np.random.standard_normal()
         tumble_uniform[step] = np.random.random()
-        if diffuse_boundary:
-            for reflection_index in range(64):
-                wall_uniform[step, reflection_index] = np.random.random()
     return (
         position_x,
         position_y,
@@ -92,7 +93,6 @@ def _density_particle_draws_kernel(
         tumble_event,
         tumble_normal,
         tumble_uniform,
-        wall_uniform,
     )
 
 
@@ -104,7 +104,8 @@ def generate_density_particle_draws(
     initial_heading: float,
     uniform_initial_position: bool,
     isotropic_initial_heading: bool,
-    boundary: str,
+    gaussian_initial_position: bool = False,
+    gaussian_sigma: float = 0.0,
 ) -> DensityParticleDraws:
     """Generate a density particle identically in Python and fused engines."""
 
@@ -115,8 +116,9 @@ def generate_density_particle_draws(
         float(initial_position[1]),
         float(initial_heading),
         uniform_initial_position,
+        gaussian_initial_position,
+        float(gaussian_sigma),
         isotropic_initial_heading,
-        boundary == "diffuse",
     )
     return DensityParticleDraws(
         initial_position=(float(outputs[0]), float(outputs[1])),
@@ -127,6 +129,5 @@ def generate_density_particle_draws(
             tumble_event=outputs[5],
             tumble_normal=outputs[6],
             tumble_uniform=outputs[7],
-            wall_uniform=outputs[8],
         ),
     )

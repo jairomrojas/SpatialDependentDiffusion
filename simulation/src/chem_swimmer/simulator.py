@@ -7,15 +7,16 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-from .angles import heading_vector, sample_tumble_heading, wrap_angle
+from .angles import heading_vector, wrap_angle
 from .boundary import advance_in_disk
 from .cases import get_case
 from .config import ProjectConfig
-from .fields import ChemicalField, create_field
-from .kinetics import KineticLaw, KineticState
+from .fields import ChemicalField, create_field, disk_area_average
+from .kinetics import KineticLaw, KineticState, angular_steering_rate
 from .noise import Innovations
 from .numerics import resolve_numerics
 from .progress import progress_bar
+from .turning import create_turning_kernel, sample_tumble_heading
 
 
 @dataclass(frozen=True)
@@ -25,8 +26,8 @@ class Trajectory:
     times: NDArray[np.float64]
     positions: NDArray[np.float64]
     headings: NDArray[np.float64]
-    concentration: NDArray[np.float64]
-    alignment: NDArray[np.float64]
+    eta: NDArray[np.float64]
+    zeta: NDArray[np.float64]
     speed: NDArray[np.float64]
     translational_diffusivity: NDArray[np.float64]
     rotational_diffusivity: NDArray[np.float64]
@@ -52,9 +53,9 @@ def _evaluate(
     position: NDArray[np.float64],
     heading: float,
 ) -> KineticState:
-    concentration, gradient = field.value_and_gradient(position)
+    eta, gradient = field.value_and_gradient(position)
     return law.evaluate(
-        float(concentration),
+        float(eta),
         np.asarray(gradient, dtype=float),
         heading,
         position,
@@ -79,10 +80,10 @@ def _evaluate_dimensionless(
 
     state = _evaluate(field, law, radius * position_star, heading)
     return KineticState(
-        concentration=state.concentration,
-        delta_c=state.delta_c,
+        eta=state.eta,
+        delta_eta=state.delta_eta,
         gradient=radius * state.gradient,
-        alignment=radius * state.alignment,
+        zeta=radius * state.zeta,
         v=state.v * radius / D_T0,
         D_T=state.D_T / D_T0,
         D_R=state.D_R * time_scale,
@@ -107,7 +108,9 @@ def _simulate_python(
     case = get_case(case_number)
     field = create_field(config.field) if field is None else field
     responses = config.responses.only_case(case_number)
-    law = KineticLaw(config.kinetics, responses, field.reference_value)
+    eta0 = disk_area_average(field, config.domain.radius)
+    law = KineticLaw(config.kinetics, responses, eta0)
+    turning_kernel = create_turning_kernel(config.turning)
 
     settings = config.simulation
     if isinstance(settings.dt, str):
@@ -134,8 +137,8 @@ def _simulate_python(
     times[-1] = settings.duration / time_scale
     positions = np.empty((number_saved, 2))
     headings = np.empty(number_saved)
-    concentration = np.empty(number_saved)
-    alignment = np.empty(number_saved)
+    eta = np.empty(number_saved)
+    zeta = np.empty(number_saved)
     speed = np.empty(number_saved)
     D_T = np.empty(number_saved)
     D_R = np.empty(number_saved)
@@ -152,8 +155,8 @@ def _simulate_python(
     def save(index: int, state: KineticState) -> None:
         positions[index] = position_star
         headings[index] = heading
-        concentration[index] = state.concentration
-        alignment[index] = state.alignment
+        eta[index] = state.eta
+        zeta[index] = state.zeta
         speed[index] = state.v
         D_T[index] = state.D_T
         D_R[index] = state.D_R
@@ -199,17 +202,17 @@ def _simulate_python(
             state.v * heading_vector(heading) * dt_star
             + np.sqrt(2.0 * state.D_T * dt_star) * innovations.translation[step]
         )
-        diffused_heading = wrap_angle(
-            heading + np.sqrt(2.0 * state.D_R * dt_star) * innovations.rotation[step]
+        advanced_heading = wrap_angle(
+            heading
+            + angular_steering_rate(responses, state.gradient, heading) * dt_star
+            + np.sqrt(2.0 * state.D_R * dt_star) * innovations.rotation[step]
         )
 
         boundary_result = advance_in_disk(
             position_star,
             displacement,
-            diffused_heading,
+            advanced_heading,
             1.0,
-            config.domain.boundary,
-            innovations.wall_uniform[step],
         )
         position_star = boundary_result.position
         heading = boundary_result.heading
@@ -221,7 +224,7 @@ def _simulate_python(
         if innovations.tumble_event[step] < event_probability:
             heading = sample_tumble_heading(
                 heading,
-                config.kinetics.a1,
+                turning_kernel,
                 innovations.tumble_normal[step],
                 innovations.tumble_uniform[step],
             )
@@ -254,8 +257,8 @@ def _simulate_python(
         times=times,
         positions=positions,
         headings=headings,
-        concentration=concentration,
-        alignment=alignment,
+        eta=eta,
+        zeta=zeta,
         speed=speed,
         translational_diffusivity=D_T,
         rotational_diffusivity=D_R,
@@ -289,7 +292,8 @@ def simulate(
     if config.performance.engine != "python":
         from .accelerated import numba_available_for, simulate_numba
 
-        if numba_available_for(field):
+        turning_kernel = create_turning_kernel(config.turning)
+        if numba_available_for(field, turning_kernel):
             bar = progress_bar(
                 total=1,
                 description=f"Numba case {case_number}",
@@ -305,7 +309,8 @@ def simulate(
         if config.performance.engine == "numba":
             raise ValueError(
                 "performance.engine='numba' requires a gaussian, linear, or "
-                "multi_gaussian field; use 'auto' for a custom-field fallback"
+                "multi_gaussian field and a wrapped-normal turning kernel; "
+                "use 'auto' for the exact readable-engine fallback"
             )
 
     return _simulate_python(
@@ -323,18 +328,18 @@ def simulate_all_cases(
     *,
     show_progress: bool = False,
 ) -> list[Trajectory]:
-    """Simulate cases 1-8 with common random innovations."""
+    """Simulate cases 1-9 with common random innovations."""
 
     field = create_field(config.field) if field is None else field
-    config, _ = resolve_numerics(config, field, tuple(range(1, 9)))
+    config, _ = resolve_numerics(config, field, tuple(range(1, 10)))
     if isinstance(config.simulation.dt, str):
         raise TypeError("internal error: automatic dt was not resolved")
     steps = round(config.simulation.duration / config.simulation.dt)
     shared = Innovations.generate(steps, config.simulation.seed)
     trajectories = []
     cases = progress_bar(
-        range(1, 9),
-        total=8,
+        range(1, 10),
+        total=9,
         description="Canonical trajectories",
         unit="case",
         enabled=show_progress,

@@ -18,11 +18,12 @@ from .noise import Innovations
 from .numerics import resolve_numerics
 from .progress import progress_bar
 from .simulator import simulate
+from .turning import create_turning_kernel
 
 
 @dataclass(frozen=True)
 class MSDResult:
-    """Mean squared displacement and its standard error for cases 1-8."""
+    """Mean squared displacement and its standard error for cases 1-9."""
 
     times: NDArray[np.float64]
     case_numbers: tuple[int, ...]
@@ -61,7 +62,7 @@ def _worker_count(requested: int, ensemble_size: int) -> int:
         return min(requested, ensemble_size)
     available = os.cpu_count() or 1
     # More than eight Python workers rarely helps this small sequential kernel
-    # on an Apple-Silicon laptop and increases memory/import overhead.
+    # on typical multicore systems and increases memory/import overhead.
     return min(ensemble_size, available, 8)
 
 
@@ -70,7 +71,7 @@ def compute_ensemble_msd(
     *,
     ensemble_size: int | None = None,
     workers: int | None = None,
-    case_numbers: tuple[int, ...] = tuple(range(1, 9)),
+    case_numbers: tuple[int, ...] = tuple(range(1, 10)),
     show_progress: bool = False,
 ) -> MSDResult:
     """Compute paired MSD curves from independent replicate noise streams."""
@@ -97,10 +98,13 @@ def compute_ensemble_msd(
     if config.performance.engine != "python":
         from .accelerated import numba_available_for
 
-        use_numba = numba_available_for(field) and case_numbers == tuple(range(1, 9))
+        use_numba = numba_available_for(
+            field, create_turning_kernel(config.turning)
+        ) and case_numbers == tuple(range(1, 10))
         if config.performance.engine == "numba" and not use_numba:
             raise ValueError(
-                "Numba MSD requires cases 1-8 and a built-in chemical field"
+                "Numba MSD requires cases 1-9, a built-in chemical field, and "
+                "the wrapped-normal turning kernel"
             )
 
     if use_numba:
@@ -236,20 +240,21 @@ def free_space_baseline_msd(
     base = config.kinetics
     radius = config.domain.radius
     time_scale = radius**2 / base.D_T0
-    gamma0 = (base.D_R0 + base.lambda0 * (1.0 - base.a1)) * time_scale
+    P_turn = create_turning_kernel(config.turning).P_turn
+    gamma1 = (base.D_R0 + base.lambda0 * (1.0 - P_turn)) * time_scale
     speed = base.v0 * radius / base.D_T0
-    if gamma0 == 0.0:
+    if gamma1 == 0.0:
         # With a frozen heading the active displacement is ballistic. This is
-        # the continuous gamma0 -> 0 limit of the expression below.
+        # the continuous gamma1 -> 0 limit of the expression below.
         return 4.0 * times + speed**2 * times**2
-    z = gamma0 * times
+    z = gamma1 * times
     relaxation_kernel = np.empty_like(times)
     small = np.abs(z) < 1.0e-4
-    # Series for [z - (1-exp(-z))]/gamma0^2 avoids catastrophic
+    # Series for [z - (1-exp(-z))]/gamma1^2 avoids catastrophic
     # cancellation when orientation relaxes extremely slowly.
     relaxation_kernel[small] = times[small] ** 2 * (
         0.5 - z[small] / 6.0 + z[small] ** 2 / 24.0 - z[small] ** 3 / 120.0
     )
-    relaxation_kernel[~small] = (z[~small] + np.expm1(-z[~small])) / gamma0**2
+    relaxation_kernel[~small] = (z[~small] + np.expm1(-z[~small])) / gamma1**2
     active = 2.0 * speed**2 * relaxation_kernel
     return 4.0 * times + active

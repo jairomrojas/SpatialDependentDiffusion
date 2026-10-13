@@ -12,10 +12,13 @@
 \usepackage[T1]{fontenc}
 \usepackage[cal=boondoxo]{mathalpha}
 \usepackage{graphicx}
-\usepackage{microtype}
-\setlength{\emergencystretch}{2em}
+% REVTeX redefines footnotes; microtype cannot patch them.
+\usepackage[nopatch=footnote]{microtype}
+\setlength{\emergencystretch}{3em}
+\tolerance=2000
 \widowpenalty=600
 \clubpenalty=600
+\hyphenation{fold-ac-cu-mu-la-tion ac-cu-mu-la-tion}
 % Long multi-line displays are the only unbreakable blocks in the appendices;
 % letting them split when a column runs out avoids large holes above them.
 \allowdisplaybreaks[1]
@@ -53,19 +56,29 @@
 \newcommand{\Piv}{\vec{\mathcal E}_p}
 \newcommand{\Tsh}{\mathbf T}
 \DeclareMathOperator{\Var}{Var}
+% REVTeX \begin{ruledtabular} cannot combine with array's p-column
+% prefixes, so the inversion table uses these instead.
+\newcommand{\invleft}[1]{\parbox[t]{0.41\columnwidth}{\raggedright #1}}
+\newcommand{\invmid}[1]{\parbox[t]{0.29\columnwidth}{\raggedright #1}}
 
 % Each results section ends with a compact readout: what to look for in the
 % data, and what seeing it implies.  These sit in the text flow rather than
 % floating, so a reader can find the recipe beside the physics that justifies
-% it.
+% it.  Do not load the array package or use >{\raggedright} column prefixes:
+% REVTeX redefines \@@array, and those prefixes fail on Overleaf's TeX Live.
+\makeatletter
 \newenvironment{readout}
   {\par\addvspace{1.2ex}\noindent\rule{\columnwidth}{0.6pt}\par\nobreak
    \vspace{0.3ex}\noindent\textbf{Reading it off the data}\par\nobreak
    \vspace{0.4ex}\footnotesize\noindent
-   \setlength{\parindent}{0pt}\emergencystretch=2em\relax
-   \begin{tabular}{@{}p{0.40\columnwidth}@{\hspace{1em}}p{0.49\columnwidth}@{}}}
+   \setlength{\parindent}{0pt}%
+   \setlength{\emergencystretch}{3em}%
+   \let\readout@restore\@arrayparboxrestore
+   \def\@arrayparboxrestore{\readout@restore\raggedright\let\\\tabularnewline}%
+   \begin{tabular}{@{}p{0.42\columnwidth}@{\hspace{0.9em}}p{0.50\columnwidth}@{}}}
   {\end{tabular}\par\nobreak\vspace{0.4ex}%
    \noindent\rule{\columnwidth}{0.6pt}\par\addvspace{1.0ex}}
+\makeatother
 
 % The bibliography is written explicitly below.  Disable REVTeX's automatic
 % endnote bibliography and its Notes.bib output stream so that external BibTeX
@@ -89,8 +102,8 @@
 \renewcommand{\dbltopfraction}{0.92}
 \renewcommand{\bottomfraction}{0.5}
 \renewcommand{\textfraction}{0.06}
-\renewcommand{\floatpagefraction}{0.90}
-\renewcommand{\dblfloatpagefraction}{0.85}
+\renewcommand{\floatpagefraction}{0.60}
+\renewcommand{\dblfloatpagefraction}{0.60}
 
 % Vertical rhythm.  The class defaults leave a wide band of white around
 % floats and headings; these bring the page back to a compact, even texture.
@@ -104,18 +117,17 @@
 \makeatletter
 \def\section{\@startsection{section}{1}{\z@}%
   {0.50cm \@plus1ex \@minus.3ex}{0.28cm}%
-  {\normalfont\small\bfseries\hyphenpenalty=10000\exhyphenpenalty=10000}}%
+  {\normalfont\small\bfseries\raggedright}}%
 \def\subsection{\@startsection{subsection}{2}{\z@}%
   {0.45cm \@plus1ex \@minus.3ex}{0.25cm}%
-  {\normalfont\small\bfseries\hyphenpenalty=10000\exhyphenpenalty=10000}}%
+  {\normalfont\small\bfseries\raggedright}}%
 \def\subsubsection{\@startsection{subsubsection}{3}{\z@}%
-  {0.45cm \@plus1ex \@minus.3ex}{0.25cm}{\normalfont\small\itshape}}%
+  {0.45cm \@plus1ex \@minus.3ex}{0.25cm}{\normalfont\small\itshape\raggedright}}%
 \makeatother
 
 \begin{document}
 
-\title{Which foraging strategy?  Reading microscopic motility rules from a
-population release}
+\title{Cellular Foraging: From nutrient-dependent motility to population transport}
 
 \author{Jairo M. Rojas}
 \affiliation{Department of Physics, University of Illinois Urbana--Champaign,
@@ -137,29 +149,7 @@ Behavior, 78464 Konstanz, Germany}
 \date{\today}
 
 \begin{abstract}
-A population of cells that piles up where the food is does not thereby reveal
-how it got there: many different microscopic responses to a nutrient produce
-the same accumulation.  We ask which of them a release experiment---drop a
-blob of cells and film it---can actually tell apart.  Nine elementary
-responses, from tumbling less while headed up-gradient to simply swimming
-slower in rich patches, fit inside one model of position and heading, which we
-coarse-grain to equations for cell density and mean heading.  Four numbers a
-film readily yields---where the cloud goes, how wide it gets, how elongated,
-and which way it points---obey closed equations, and each response enters them
-at its own power of time.  This sorts the nine into six distinguishable groups
-and sets how long each must be watched.  Read once the cloud has stopped
-moving, the same numbers separate two coefficients that are routinely
-conflated: the cloud's width returns the chemotactic mobility, its elongation
-returns the drift of its centre of mass, and the two can differ in sign.  It
-is the mobility, not the drift, that fixes how much nutrient the population
-eats and how densely it accumulates---and it does so on the food's diffusive
-time rather than the dish's, so foraging finishes long before the density
-settles.  Tracking single cells over a fixed lag supplies the remaining
-combinations and separates navigating well from moving informatively: the two
-responses that never carry a cell up-gradient are the two its motion reveals
-the most about.  We tabulate what each measurement returns, and verify every
-prediction against particle simulations and a conservative finite-volume
-solution with no fitted transport coefficient.
+Microscopic organisms employ diverse foraging rules to navigate nutrient landscapes, ranging from actively biased tumbling to simply swimming slower in rich patches. To differentiate these mechanisms at the population level, we map nine elementary foraging rules onto four macroscopic observables: average position $\vec{X}$, average polarity $\vec{P}$, excess colony width $\Delta S$, and colony shape tensor $\mathbf{T}$, showing that each rule switches on at a characteristic power of time. Chemotactic mobility, rather than center-of-mass drift, drives active nutrient harvest, allowing populations in patchy environments to complete their harvest on the local patch timescale long before density settles across the arena. Applying this framework to a localized release within a single spatial cosine mode, we confirm this rapid harvest and show that the excess width $\Delta S$ and shape tensor $\mathbf{T}$ decouple mobility from center-of-mass drift. While individual cell motion is heavily dominated by fluctuations, spatial integration averages out this microscopic noise, enabling standard population imaging to diagnose microscopic foraging rules and quantify foraging performance without the experimental burden of tracking single cells repeatedly.
 \end{abstract}
 
 \maketitle
@@ -209,19 +199,21 @@ them two that are routinely conflated: a mobility that says where the cells
 end up and how much they eat, and a drift that says where their centre of mass
 went.  The settled cloud's width returns the first and its elongation the
 second, and for a speed rule the two have opposite signs
-(Secs.~\ref{sec:long-time}--\ref{sec:foraging}).  Finally, tracking single
-cells over a fixed lag supplies the combinations the fields merge, and
-separates navigating well from moving informatively
-(Sec.~\ref{sec:information}).  Section~\ref{sec:model-comparison} tests every
-prediction against particle simulations and a finite-volume solution of the
-coarse-grained equations.
+(Sec.~\ref{sec:long-time}).  The mobility, not the drift, then fixes how much
+the population eats, and it does so on the food's clock rather than the
+dish's (Sec.~\ref{sec:foraging}).  Particle simulations and a finite-volume
+solution of the coarse-grained equations, with no fitted transport
+coefficient, are compared with the closed-form predictions in the figures
+throughout; the solvers and the landscape are specified in
+Appendix~\ref{app:numerics}.
 
 The outcome is a field guide (Table~\ref{tab:inversion}, in
 Appendix~\ref{app:observables}): each row a measurement you can make, and the
 mechanisms it distinguishes.  A reader who wants the recipe rather than the
 derivation can start there and work backwards; Table~\ref{tab:cases} names
 the nine rules.  Appendices~\ref{app:model}--\ref{app:remaining-cases} carry
-the derivations, the propagator and the numerics.
+the derivations, the propagator, the numerics, and the lag-tracking
+observables that split the one degeneracy population imaging cannot.
 
 \section{Nine ways to respond}
 \label{sec:overview}
@@ -301,7 +293,7 @@ use, and the question of this paper is which of the nine an experiment can
 tell apart.  That is not visible yet---it needs the coarse-graining of
 Sec.~\ref{sec:closure}.
 
-\begin{table}[tbp]
+\begin{table}[t]
 \caption{\textbf{The nine response rules.}  Each rule lets the nutrient tune
 one motility parameter, or (Case 9) steer the cell directly.  \emph{Level}
 rules respond to how much food is present and carry no directional
@@ -333,7 +325,7 @@ Case & Name (sensitivity) & What the nutrient changes\\
 \end{ruledtabular}
 \end{table}
 
-\begin{figure*}[tp]
+\begin{figure*}[t]
   \centering
   \includegraphics[width=0.70\textwidth]{figures/figure-1-response-rules.pdf}
   \caption{\textbf{Nine ways a nutrient can change how a cell moves.}  Gold
@@ -350,28 +342,6 @@ Case & Name (sensitivity) & What the nutrient changes\\
   sign convention only.}
   \label{fig:response-rules}
 \end{figure*}
-
-\begin{figure}[tbp]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/figure-3-case-1-validation.pdf}
-  \caption{\textbf{The experiment, and three independent calculations of it.}
-  (a) The nutrient landscape: a single cosine, with the blob of cells released
-  inside the orange circle.  Solid lines mark food crests, dashed lines
-  troughs, and the same marks reappear on every panel below, so the sign of a
-  response can be read directly against them.  The cut along $\hat q$ shows
-  why the release sits off-crest: at this phase the landscape has equal odd
-  and even parts about the release point, which excites the centroid and the
-  spread at the same time.  (b--d) The same problem solved three ways---by
-  simulating individual cells, by integrating the coarse-grained equations,
-  and by the closed-form Fourier solution---for level--jitter (Case 1) at
-  $t=5\times10^{-3}$.  Each shows the density change $\rho_1-\rho_0$ beside
-  the polarity change $|\mathbf p_1-\mathbf p_0|$.  \emph{What to look for:}
-  the three columns should be indistinguishable, and they are, to
-  $\sim1\%$.  Colour scales are shared with
-  Fig.~\ref{fig:remaining-cases}; level--jitter has the weakest polarity of
-  the nine, which is why those panels look nearly blank.}
-  \label{fig:case1-validation}
-\end{figure}
 
 All nine live in one It\^o process for the position and heading,
 \begin{subequations}
@@ -420,8 +390,10 @@ $\partial_t\rho=-\grad\cdot\vec J^{(\rho)}$, but not a closed one: density
 leans on polarity, which leans on $\Qt$, and so on up an infinite chain.  We
 cut the chain at $\Qt=\mathbf0$---the \emph{polar closure}---betting that
 alignment along an axis relaxes faster than transport can build it.  Three
-explicit conditions control that bet (Appendix~\ref{app:closure}), and
-Sec.~\ref{sec:model-comparison} measures what it costs.
+explicit conditions control that bet (Appendix~\ref{app:closure}).  On the
+landscape below the residual is
+$(v^{(0)}q/\DRtwo)^{2}=3.8\%$, which becomes the limiting systematic once
+sampling error is below a per cent (Appendix~\ref{app:numerics}).
 
 The rate at which a cell forgets its heading is what sets everything below.
 Rotational diffusion and tumbling both damp it, and they combine into a single
@@ -476,6 +448,28 @@ order out of the density.
 \section{The four numbers a film gives}
 \label{sec:observables}
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/figure-3-case-1-validation.pdf}
+  \caption{\textbf{The experiment, and three independent calculations of it.}
+  (a) The nutrient landscape: a single cosine, with the blob of cells released
+  inside the orange circle.  Solid lines mark food crests, dashed lines
+  troughs, and the same marks reappear on every panel below, so the sign of a
+  response can be read directly against them.  The cut along $\hat q$ shows
+  why the release sits off-crest: at this phase the landscape has equal odd
+  and even parts about the release point, which excites the centroid and the
+  spread at the same time.  (b--d) The same problem solved three ways---by
+  simulating individual cells, by integrating the coarse-grained equations,
+  and by the closed-form Fourier solution---for level--jitter (Case 1) at
+  $t=5\times10^{-3}$.  Each shows the density change $\rho_1-\rho_0$ beside
+  the polarity change $|\mathbf p_1-\mathbf p_0|$.  \emph{What to look for:}
+  the three columns should be indistinguishable, and they are, to
+  $\sim1\%$.  Colour scales are shared with
+  Fig.~\ref{fig:remaining-cases}; level--jitter has the weakest polarity of
+  the nine, which is why those panels look nearly blank.}
+  \label{fig:case1-validation}
+\end{figure}
+
 The experiment we have in mind is a \emph{release}: drop a compact blob of
 cells at one point of the landscape and film it.  Few experiments resolve
 $\rho$ and $\pv$ everywhere; most report a handful of numbers per frame.  This
@@ -487,7 +481,7 @@ With $\vec x$ the displacement from the release point, a film of the cloud
 yields four numbers per frame:
 \begin{equation}
 \begin{gathered}
- \Pnet=\int\pv\,\dd^2x,
+ \Pnet=\frac1N\int\pv\,\dd^2x,
  \qquad
  \Xc=\frac1N\int\vec x\,\rho\,\dd^2x,\\
  S=\frac1N\int|\vec x|^{2}\rho\,\dd^2x,
@@ -496,7 +490,7 @@ yields four numbers per frame:
 \end{gathered}
  \label{eq:observable-definitions}
 \end{equation}
-the \emph{heading} $\Pnet$ (which way the cloud points), the \emph{centroid}
+the \emph{average polarity} $\Pnet$ (which way the cloud points), the \emph{centroid}
 $\Xc$ (where it has moved to), the \emph{width} $S$, and the \emph{shape}
 $\Tsh$ (how elongated it is, and along which axis).  Integrating
 Eqs.~\eqref{eq:polar-closed-system} over the plane turns two field equations
@@ -534,7 +528,7 @@ you released on a crest or in a valley & only width and shape can
 respond; move off-centre to see the centroid\\
 \end{readout}
 
-\begin{figure*}[tp]
+\begin{figure*}[t]
   \centering
   \includegraphics[width=0.98\textwidth]{figures/figure-4-macroscopic-observables.pdf}
   \caption{\textbf{Each mechanism switches on at its own time, and the slopes
@@ -552,7 +546,8 @@ respond; move off-centre to see the centroid\\
   dashed lines the coarse-grained solver, pale lines the closed-form theory.
   Markers are plotted only where a response exceeds twice its sampling error,
   so where a curve begins is the experimental resolution limit, not a physical
-  onset.}
+  onset.  Fitted exponents agree with the table to within a per cent; the two
+  jitter rules return elongations consistent with zero.}
   \label{fig:macroscopic-observables}
 \end{figure*}
 
@@ -574,11 +569,11 @@ drives the centroid, so $\Xc\sim t^{2}$.  Tracing each route through
 Eqs.~\eqref{eq:observable-balance} gives
 Table~\ref{tab:observable-hierarchy} with no further calculation.
 
-\begin{table}[tbp]
+\begin{table*}[t]
 \caption{\textbf{When each mechanism becomes visible.}  Entries are the
 leading power of $t$ with which a rule's signal grows in each observable, read
 off Eqs.~\eqref{eq:observable-balance}: a higher power means a later, weaker
-onset and a longer film.  The four observables are the net polarity $\Pnet$
+onset and a longer film.  The four observables are the average polarity $\Pnet$
 (mean heading), centroid $\Xc$ (where the cloud went), spread $S$ (how wide),
 and shape $\Tsh$ (how elongated).  A dash means \emph{identically zero}, not
 merely small---a structural blind spot no ensemble size repairs.  Reading the
@@ -604,7 +599,7 @@ Case & Rule (sensitivity) & $\Pnet$ & $\Xc$ & $S$ & $\Tsh$\\
 9 & steering\qquad\ \ \ $\chi$ & $t$ & $t^2$ & $t^2$ & $t^2$\\
 \end{tabular}
 \end{ruledtabular}
-\end{table}
+\end{table*}
 
 \textbf{Result.}  \emph{The exponents sort the nine rules into six
 distinguishable groups.}  Two sets stay merged---level--wander with
@@ -612,9 +607,12 @@ level--tumble, and aimed--wander with aimed--tumble and steering---and they
 are merged by the model itself, not by weak statistics: they enter only
 through the combinations $\mathcal D_R^{(\eta)}$ and
 $\chi-\mathcal D_R^{(\zp)}$.  No ensemble size separates them.
+Figure~\ref{fig:macroscopic-observables} confirms the powers against simulated
+cells, the polar solver and the closed-form theory, with no transport
+coefficient fitted.
 
-This is a statement about experimental design, and a sharp one.  Over a window
-$t\ll1/\DR$, the level--wander signal stands to the level--jitter signal as
+This is a statement about experimental design, and a sharp one.  Take a window
+$t \ll 1/\DR$: the level--wander signal stands to the level--jitter signal as
 $\mathcal D_R^{(\eta)}(v^{(0)})^{2}t^{2}/D_T^{(\eta)}$---about one per cent
 for the parameters below.  Film a release for a fifth of a heading-relaxation
 time and it will tell you almost nothing about how food shifts the turning
@@ -632,7 +630,7 @@ nothing yet & you may simply be early: check $t\DR$ before concluding the
 response is absent\\
 \end{readout}
 
-\section{Two coefficients, not one}
+\section{Late-time geometry: width for mobility, elongation for drift}
 \label{sec:long-time}
 
 Wait long enough and the nine rules stop being nine.  Once $t\gg1/\DR$, every
@@ -708,13 +706,11 @@ steady state throws most of the information away: level--wander and
 level--tumble become indistinguishable, the three aimed-turning rules collapse
 onto one mobility, and aimed--jitter vanishes from all three numbers
 (Table~\ref{tab:mode-inversion}).  Recovering the rest means reading the same
-film earlier (Sec.~\ref{sec:observable-hierarchy}) or one cell at a time
-(Sec.~\ref{sec:information}).  What the late film \emph{does} return, and how
-to read it off cleanly, is the next section.
+film earlier (Sec.~\ref{sec:observable-hierarchy}).  What the late film
+\emph{does} return is the two coefficients separately, from the geometry of
+the settled cloud.
 
-\section{Saturation: what one release returns}
 \label{sec:observable-saturation}
-
 Two coefficients call for two measurements, and one film supplies both---but
 only once it has run long enough, and only if the right two moments are read
 off it.  One practical warning first.  A release in a periodic landscape does
@@ -779,30 +775,6 @@ $\tau_\ell$\\[2pt]
 elongation stays zero & a jitter rule $\Rightarrow$ 1,\,5\\
 \end{readout}
 
-\begin{figure}[tbp]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/figure-5-foraging-observables.pdf}
-  \caption{\textbf{What one release measures, and what the population earns by
-  it.}  (a) Drift against mobility.  Reading the width and the elongation of
-  the settled cloud returns $\mathcal V$ and $\kappa$ separately; circles are
-  recovered values, crosses the values put in, and the dotted diagonal is
-  where the two coefficients would agree.  \emph{The point of the panel is the
-  points that lie off that diagonal}: level--speed (3) sits in the opposite
-  quadrant---it drifts toward food while accumulating away from it---and
-  level--jitter (1) sits on the vertical axis, accumulating strongly with no
-  drift whatever.  (b) Uptake over time, each rule divided by its own
-  predicted gain; all collapse onto $1-e^{-t/\tau_\ell}$, so a single
-  landscape clock governs feeding.  (c) The harvest law itself: nutrient
-  actually collected against the mobility $\kappa$ put in, falling on one
-  line.  Level--wander (2) and level--tumble (4) sit at the origin and earn
-  nothing.  Aimed--jitter (5) is the exception that proves the rule---it earns
-  a real gain with $\kappa=0$, because it feeds at one order beyond this
-  expansion.  (d) How distinguishable each rule is from a non-responding
-  forager; $1/\mathcal K$ is the number of cells a detection needs, and the
-  grouping is by the exponent each rule inherits.}
-  \label{fig:foraging}
-\end{figure}
-
 \section{Foraging: what the population earns}
 \label{sec:foraging}
 
@@ -827,6 +799,32 @@ coarse compared with a run,
  \;+\;\ord(\varepsilon^{2}).
  \label{eq:harvest-law}
 \end{equation}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/figure-5-foraging-observables.pdf}
+  \caption{\textbf{What one release measures, and what the population earns by
+  it.}  (a) Drift against mobility.  Reading the width and the elongation of
+  the settled cloud returns $\mathcal V$ and $\kappa$ separately; circles are
+  recovered values, crosses the values put in, and the dotted diagonal is
+  where the two coefficients would agree.  \emph{The point of the panel is the
+  points that lie off that diagonal}: level--speed (3) sits in the opposite
+  quadrant---it drifts toward food while accumulating away from it---and
+  level--jitter (1) sits on the vertical axis, accumulating strongly with no
+  drift whatever.  (b) Uptake over time, each rule divided by its own
+  predicted gain; all collapse onto $1-e^{-t/\tau_\ell}$, so a single
+  landscape clock governs feeding.  (c) The harvest law itself: nutrient
+  actually collected against the mobility $\kappa$ put in, falling on one
+  line.  Level--wander (2) and level--tumble (4) sit at the origin and earn
+  nothing.  Aimed--jitter (5) is the exception that proves the rule---it earns
+  a real gain with $\kappa=0$, because it feeds at one order beyond this
+  expansion.  (d) How distinguishable each rule is from a non-responding
+  forager; $1/\mathcal K$ is the number of cells a detection needs, and the
+  grouping is by the exponent each rule inherits.  Reading the width and
+  elongation of one settled cloud returns $\kappa$ and $\mathcal V$ to within
+  $2.5\%$ for every rule that has them.}
+  \label{fig:foraging}
+\end{figure}
 
 The two terms differ in kind.  The \emph{passive} term is what diffusion
 does to any population at all: it smears cells over the landscape, erasing
@@ -909,218 +907,6 @@ uptake plateaus, density still drifting & normal: the two run on clocks
 $(\ell/\mathcal R)^{2}$ apart\\
 \end{readout}
 
-\begin{figure}[tbp]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/figure-6-information-observables.pdf}
-  \caption{\textbf{What tracking single cells adds, and what it does not.}
-  All panels use a constant gradient and a common observation lag $\tau$.
-  (a) How fast a tracked cell really climbs, divided by the drift of the whole
-  cloud.  Every curve saturates at one---\emph{a single cell watched long
-  enough climbs at exactly the population's drift}---but reaches it through
-  one of only three shapes, set by how many heading relaxations the rule needs
-  before it can move a cell.  The two jitter rules (1, 5) stay flat at zero at
-  every lag.  (b) Sorting the same tracks by initial heading returns two
-  independent combinations, so pure steering (9) and pure turning (6, 8)
-  separate---which no population measurement can do.  (c) The same trick on
-  the level rules separates level--speed (3), which returns the bare
-  sensitivity $v^{(\eta)}$ as the lag closes, from level--wander and
-  level--tumble (2, 4), which vanish with the lag.  (d) How much a cell's
-  motion reveals about its state, above the baseline that a merely swimming
-  cell already provides.  \emph{Note the reversal:} the jitter rules, which
-  never carry a cell up-gradient, dominate here, while the turning rules that
-  navigate well sit below the estimator's floor.}
-  \label{fig:information}
-\end{figure}
-
-\section{Tracking: what one cell adds}
-\label{sec:information}
-
-Everything so far uses the density and polarity at a single time.  Tracking
-individual cells costs more, and buys two things a population picture cannot
-supply: it separates rules the fields merge, and it pulls apart two notions
-that are constantly conflated---\emph{navigating well} and \emph{moving
-informatively}.
-
-Watch one cell over a fixed \emph{lag} $\tau$, from $t$ to $t+\tau$.  Write
-$g=|\grad\eta|$ for the gradient strength, $\alpha$ for the
-\emph{heading error}---the angle between where the cell points and where the
-food is---and $\mathcal S_t=(\rv_t,\alpha_t)$ for the cell's state relative to
-the nutrient.  Every rule is then judged by one and the same random variable,
-the \emph{distance made good} up the gradient the cell actually faced,
-\begin{equation}
- Y^{\tau}=\bigl(\rv_{t+\tau}-\rv_t\bigr)\cdot\hat g(\rv_t).
- \label{eq:projected-displacement}
-\end{equation}
-
-Two things can be asked of $Y^\tau$.  Its average is a
-\emph{navigation velocity} $V_\parallel$: how fast this cell really climbs.
-Its full distribution is a \emph{communication channel}, and the mutual
-information $\Irate$ it carries says how much an observer watching the cell
-learns about where it started relative to the food,
-\begin{equation}
- V_\parallel(t;\tau)=\frac{\mathbb E\bigl[Y^\tau\bigr]}{\tau},
- \qquad
- \Irate(t;\tau)=\frac{I\bigl(\mathcal S_t;Y^\tau\bigr)}{\tau},
- \label{eq:navigation-observables}
-\end{equation}
-
-Using the same variable for all nine rules is what puts a speed response and a
-tumble response on an equal footing: no rule-specific ``controller action'' is
-invented, and no coefficient is frozen during the window.
-
-\subsection{Navigation: the same drift, on a lag clock}
-
-Taking the release as the window start and working to first order gives,
-remarkably,
-\begin{equation}
- \boxed{\;V_{\parallel,j}(0;\tau)=\mathcal V_j\,\langle g\rangle\,
- \Phi_j\!\left(\DR\tau\right)\;}
- \label{eq:projected-velocity-result}
-\end{equation}
-with $\mathcal V_j$ the very same pulse drift as Eq.~\eqref{eq:pulse-drift},
-and only three lag shapes among all nine rules,
-\begin{equation}
-\begin{gathered}
- W(u)=\frac{1-e^{-u}}{u},\qquad
- \Phi(u)=1-W(u)\simeq\frac u2,\\
- \Psi(u)=1-\frac{2-(2+u)e^{-u}}{u}\simeq\frac{u^{2}}{6},
-\end{gathered}
- \label{eq:lag-shapes}
-\end{equation}
-distributed as
-\begin{equation}
- \Phi_7=1,\quad
- \Phi_{3,6,8,9}=\Phi,\quad
- \Phi_{2,4}=\Psi,\quad
- \mathcal V_1=\mathcal V_5=0 .
- \label{eq:lag-hierarchy}
-\end{equation}
-
-\textbf{Result.}  \emph{Watched long enough, a tracked cell climbs at exactly
-the rate the whole cloud's centre of mass drifts}---individual navigation and
-pulse drift are one number.  The lag decides only how much of that rate is
-visible, through one of just three curves.
-
-Those three shapes are the short-time hierarchy again, now in the lag domain,
-and the counting is once more a counting of delays.  Aimed--speed needs none:
-a cell that speeds up whenever it happens to point up-gradient makes progress
-on its first step.  Level--speed, aimed--wander, aimed--tumble and steering
-need one---the heading must be biased before displacement follows.
-Level--wander and level--tumble need two.  The jitter rules never navigate at
-any lag: a diffusivity that depends on position drifts the population but not
-the individual.
-
-Sorting the windows by the cell's initial heading buys more.  The average
-climb carries $\chi-\mathcal D_R^{(\zp)}$, but the $\cos2\alpha$ harmonic of
-the same data carries $\chi+\mathcal D_R^{(\zp)}$.  Two independent
-combinations separate genuine steering from heading-dependent turning---the
-one degeneracy no population measurement can break---and it is no accident
-that the missing information sits in exactly the harmonic the closure
-discarded.
-
-\subsection{Information: what the motion gives away}
-
-At short lag the channel is Gaussian with no approximation,
-$Y^\tau=\tau\mu(\mathcal S)+\sqrt{2D_T(\mathcal S)\tau}\,Z$ with
-$\mu=v(\mathcal S)\cos\alpha$, so the rate follows in closed form,
-\begin{equation}
- \boxed{\;\Irate(t;0^{+})=\frac{\Var[\mu(\mathcal S_t)]}{4D_T^{(0)}}
- +\frac{\Var[\delta(\mathcal S_t)]}{4\tau}\;},
- \label{eq:short-lag-information}
-\end{equation}
-with $\delta$ the relative change in diffusivity,
-$D_T=D_T^{(0)}[1+\delta]$.  Two features of this formula do the work.
-
-First, the baseline is already positive: $\Irate_0=(v^{(0)})^{2}/8D_T^{(0)}$
-even with no sensing at all.  A cell that merely swims moves further along its
-own heading than across it, so watching it tells you something about which way
-it pointed.  \emph{Movement information is therefore not, by itself, evidence
-of sensing}---an inference that has to be made against this baseline, not
-against zero.
-
-Second, only the rules that change the \emph{step} are legible: the two speed
-rules through $\Var[\mu]$ and the two jitter rules through $\Var[\delta]$
-[Eq.~\eqref{eq:information-cases}].  All four turning rules and steering leave
-the rate exactly at baseline, because they change the heading before anything
-has moved.  The two jitter rules are singular as well as dominant---their
-channel is a scale mixture rather than a shifted Gaussian, so the total
-information saturates and the \emph{rate} diverges as $\tau\to0$, which is why
-a common positive lag is required for any fair comparison.  And the drift
-never appears at all: shifting every outcome by the same amount tells an
-observer nothing about the state.
-
-\textbf{Result.}  \emph{Navigating well and moving informatively are
-dissociated.}  The two jitter rules never carry a cell up-gradient at any lag,
-yet they dominate what its motion reveals; level--wander and level--tumble
-navigate perfectly well and reveal almost nothing.  The comfortable intuition
-that a better forager must be a more legible one gets no support here, and an
-inference method that assumes it will misread the mechanism.
-
-\begin{readout}
-climbing rate flat at zero, every lag & a jitter rule $\Rightarrow$
-1,\,5\\[2pt]
-climbing rate saturates at once & aimed--speed $\Rightarrow$ 7\\[2pt]
-information rate diverges as $\tau\to0$ & a jitter rule again $\Rightarrow$
-1,\,5\\[2pt]
-information rate sits at the swimming baseline & a turning rule $\Rightarrow$
-2,\,4,\,6,\,8,\,9\\[2pt]
-$\cos2\alpha$ harmonic off the turning line & steering $\Rightarrow$ 9,
-separated from 6 and 8\\[2pt]
-$\delta\eta\cos\alpha$ harmonic finite as $\tau\to0$ & level--speed
-$\Rightarrow$ 3, separated from 2 and 4\\
-\end{readout}
-
-\section{Numerical test}
-\label{sec:model-comparison}
-
-Two independent numerical descriptions test the construction: direct
-simulation of the microscopic jump--diffusion, Eq.~\eqref{eq:sde-cont}, and a
-conservative finite-volume integration of the closed system,
-Eq.~\eqref{eq:polar-closed-system}.  All three calculations share one release,
-one nutrient field and one parameter set, and no transport coefficient is
-fitted.  The landscape is a single cosine of wavenumber $q\mathcal R=7.0156$
-and amplitude $\varepsilon=0.25$, so every closed form above applies verbatim;
-Appendix~\ref{app:numerics} explains that choice, the calibration, and the
-flux discretization a chemotactic measurement is sensitive to.
-
-Figure~\ref{fig:case1-validation} shows level--jitter (Case 1), the strictest
-sign check available: cells accumulate where they jiggle \emph{least}, and a
-theory that mishandles the position-dependent diffusivity gets the sign
-backwards.  The three methods agree to relative $L^{2}$ density errors of
-$7.2\times10^{-3}$ and $1.0\times10^{-2}$, at cosine similarities $0.99998$
-and $0.99996$.
-
-The four release observables give the sharpest test, because simulated cells
-estimate them as plain averages---no binning, no bandwidth, no field to
-reconstruct.  Figure~\ref{fig:macroscopic-observables} confirms three
-predictions at once: the uniform background reproduces the
-ballistic-to-diffusive crossover at $t\DR=1$; every response enters at the
-power of $t$ Table~\ref{tab:observable-hierarchy} assigns it, with fitted
-exponents within a per cent; and the structural zeros hold exactly.  The
-shape $\Tsh$ is measured here for the first time, and its sharpest
-prediction holds: the two jitter rules return elongations consistent with
-zero ($z=1.2$ and $-0.3$), while the other seven match theory to $1.3\%$.
-
-Figure~\ref{fig:foraging} tests the saturation and harvest laws.  Reading the
-width and elongation of one settled cloud returns $\kappa$ and $\mathcal V$ to
-within $2.5\%$ for every rule that has them, and every feeding rule collapses
-onto $1-e^{-t/\tau_\ell}$ with a gain independent of wavelength, as
-Eq.~\eqref{eq:accumulation-ratio} requires.
-Figure~\ref{fig:information} tests the tracked-cell predictions against a
-solution of the kinetic problem itself, since the coarse-grained fields cannot
-produce a two-time law: the lag shapes, the harmonic separations and the
-information baseline all come through, with the turning rules four orders of
-magnitude below the two jitter rules.
-
-Residuals are of two known kinds, and both are understood.  Simulated cells
-and the coarse-grained solver differ by about a per cent on the polarity and
-centroid and by up to seven on the shape---the ordering of exposure to the
-discarded nematic harmonic.  The solver then departs from the first-order
-theory at second order in the response amplitude: halving every sensitivity
-halves the gap.  Once a response is resolved to better than a per cent, the
-residual settles at the size of the neglected harmonic,
-$(v^{(0)}q/\DRtwo)^{2}=3.8\%$ here---so this window is exactly where the
-closure's own error becomes the limiting systematic.
 
 \section{Discussion}
 \label{sec:discussion}
@@ -1143,14 +929,17 @@ thrown most of the information away, and has waited far longer than the cells
 needed: feeding runs on the landscape's clock, mixing on the dish's, and here
 those are a factor of $186$ apart.
 
-\emph{A better forager is not a more informative one.}  The rules whose motion
-reveals most about a cell's state are precisely the two that never carry it
-up-gradient, while the best navigators sit at the baseline that mere swimming
-already supplies.  Any inference scheme assuming that legibility tracks
-performance will read the mechanism backwards.
+\emph{Population imaging cannot split three aimed-turning rules.}
+Aimed--wander, aimed--tumble and steering enter the polar-closed equations
+only through $\chi-\mathcal D_R^{(\zp)}$.  That is a degeneracy of the model,
+not of statistics: no ensemble size separates them.  Breaking it needs either
+the nematic harmonic the closure discarded, or a lag-resolved track of single
+cells (Appendix~\ref{sec:information}).
 
-Table~\ref{tab:inversion} collects the practical content of all three in one
-place: each row an experiment, what it returns, and which rules it separates.
+Table~\ref{tab:inversion} collects the practical content in one place: each
+row an experiment, what it returns, and which rules it separates.  The first
+two blocks need only a film of the cloud; the third is the lag tracking of
+Appendix~\ref{sec:information}.
 
 \emph{One mode, or many?}  We have worked throughout with a single sinusoid,
 and that was a choice, not a restriction.  To first order in the contrast the
@@ -1173,9 +962,12 @@ answer to be a spectrum-weighted average rather than a clean coefficient.
 
 Three approximations delimit everything above: the linear response laws, the
 polar closure, and the weak-landscape and wall-free windows.  Two pairs of
-rules stay merged throughout, and both are broken by the same missing
-measurement---nematic order---which would also resolve the few-per-cent
-closure systematic.  That is the natural next experiment.
+rules stay merged throughout---level--wander with level--tumble, and
+aimed--wander with aimed--tumble and steering---and both are broken by the
+same missing measurement, nematic order, which would also resolve the
+few-per-cent closure systematic.  Lag tracking
+(Appendix~\ref{sec:information}) splits the second pair without restoring
+$\Qt$.  Either is a natural next experiment.
 
 \appendix
 
@@ -1702,7 +1494,7 @@ a power of $t$.
 This is a statement about experimental design, not only about asymptotics.
 Over a window $t\ll1/\DR$ the Case-2 density response stands to the Case-1
 response as $\mathcal D_R^{(\eta)}(v^{(0)})^2t^2/D_T^{(\eta)}$, up to a
-numerical factor; for the parameters of Sec.~\ref{sec:model-comparison} that
+numerical factor; for the parameters of Appendix~\ref{app:numerics} that
 ratio is $1.2\times10^{-2}$.
 
 A release watched for a fifth of an orientational relaxation time therefore
@@ -1710,7 +1502,7 @@ says almost nothing about how the nutrient level shifts the turning
 statistics---however many cells are tracked.  Seeing Cases 2 and 4 in density
 needs $t\gtrsim1/\DR$, which is precisely where the fast mode of
 Eq.~\eqref{eq:fast-relaxing-mode} has died and the long-time reduction below
-takes over.  Section~\ref{sec:model-comparison} bears this out: at unchanged
+takes over.  Appendix~\ref{app:numerics} bears this out: at unchanged
 ensemble size the two carry a thirtieth of the Case-1 density response at
 $t\DR\simeq0.36$ and more than half of it at $t\DR\simeq1.78$.  Their polarity
 signature arrives one power of $t$ sooner, and is the better thing to watch
@@ -1733,7 +1525,7 @@ and the landscape shifts it by
 \section{Long-time reduction and mode inversion}
 \label{app:longtime}
 
-\begin{table}[tbp]
+\begin{table}[t]
 \caption{\textbf{What survives at long times---and what is lost.}  After many
 heading relaxations the nine rules compress onto only three measurable
 numbers: a shift in how fast headings relax, a shift in the spreading rate
@@ -1962,7 +1754,7 @@ polarity.  The next two sections supply both.
 \subsection{Solving for the six combinations}
 \label{app:inversion-algebra}
 
-\begin{table}[tbp]
+\begin{table}[t]
 \caption{\textbf{A field guide: which measurement identifies which
 mechanism.}  This is the paper's practical summary---each row is an experiment
 you can do, what it returns, and which rules it tells apart.  The first block
@@ -1976,30 +1768,46 @@ split.}
 \label{tab:inversion}
 \footnotesize
 \begin{ruledtabular}
-\begin{tabular}{@{}p{0.40\columnwidth} p{0.30\columnwidth} l@{}}
-Measurement & Returns & Rules it isolates\\
+\begin{tabular}{@{}lll@{}}
+\invleft{Measurement} & \invmid{Returns} & Rules it isolates\\
 \colrule
 \multicolumn{3}{l}{\emph{Density images alone}}\\
-Decay of $f(k,t)$, uniform background (DDM) & $v^{(0)},D_T^{(0)},\DR$ & ---\\
-Shift of the fast decay rate & level turning strength & 2, 4\\
-Centroid displacement, odd mode & $\mathcal V$ & ---\\
-Pulse shape $T_\parallel$, even mode & $\mathcal V$ (no background) & ---\\
-Spread $\Delta S$, even mode & $\kappa$ & ---\\
-Spread, wavenumber-independent part & $\ell_{\mathrm{run}}v^{(\zp)}+2D_T^{(\zp)}$ & 5, 7\\
-Heading plateau, with the centroid & the speed rules' share of $\mathcal V$ & 3, 7\\
-Short-time exponents of $\Pnet,\Xc,S$ & which overlap drives each & six groups\\
+\invleft{Decay of $f(k,t)$, uniform background (DDM)} &
+  \invmid{$v^{(0)},D_T^{(0)},\DR$} & ---\\
+\invleft{Shift of the fast decay rate} &
+  \invmid{level turning strength} & 2, 4\\
+\invleft{Centroid displacement, odd mode} &
+  \invmid{$\mathcal V$} & ---\\
+\invleft{Pulse shape $T_\parallel$, even mode} &
+  \invmid{$\mathcal V$ (no background)} & ---\\
+\invleft{Spread $\Delta S$, even mode} &
+  \invmid{$\kappa$} & ---\\
+\invleft{Spread, wavenumber-independent part} &
+  \invmid{$\ell_{\mathrm{run}}v^{(\zp)}+2D_T^{(\zp)}$} & 5, 7\\
+\invleft{Heading plateau, with the centroid} &
+  \invmid{the speed rules' share of $\mathcal V$} & 3, 7\\
+\invleft{Short-time exponents of $\Pnet,\Xc,S$} &
+  \invmid{which overlap drives each} & six groups\\
 \colrule
 \multicolumn{3}{l}{\emph{Population averages over the landscape}}\\
-Uptake rate $\dot{\mathcal U}$ & $\kappa$ & ---\\
-Steady accumulation $\rho_{\max}/\rho_{\min}$ & $\kappa/D_{\mathrm{eff}}^{(0)}$ & ---\\
-Divergence $\mathcal K$ from a null forager & squares of the above & detection cost\\
+\invleft{Uptake rate $\dot{\mathcal U}$} &
+  \invmid{$\kappa$} & ---\\
+\invleft{Steady accumulation $\rho_{\max}/\rho_{\min}$} &
+  \invmid{$\kappa/D_{\mathrm{eff}}^{(0)}$} & ---\\
+\invleft{Divergence $\mathcal K$ from a null forager} &
+  \invmid{squares of the above} & detection cost\\
 \colrule
 \multicolumn{3}{l}{\emph{Tracked windows of common lag $\tau$}}\\
-Projected velocity $V_\parallel(\tau)$ & $\mathcal V_j$, and $\Phi_j$ & 7 $|$ 3,6,8,9 $|$ 2,4\\
-$\cos2\alpha$ harmonic & $\chi+\mathcal D_R^{(\zp)}$ & 9 from 6, 8\\
-$\delta\eta\cos\alpha$ harmonic & $v^{(\eta)}$, $\mathcal D_R^{(\eta)}$ & 3 from 2, 4\\
-Information rate $\Irate(\tau)$ & $(v^{(\eta)})^2,(v^{(\zp)})^2$ & 3, 7\\
-Information rate as $\tau\to0$ & $(D_T^{(\eta)})^2,(D_T^{(\zp)})^2$ & 1, 5\\
+\invleft{Projected velocity $V_\parallel(\tau)$} &
+  \invmid{$\mathcal V_j$, and $\Phi_j$} & 7 $|$ 3,6,8,9 $|$ 2,4\\
+\invleft{$\cos2\alpha$ harmonic} &
+  \invmid{$\chi+\mathcal D_R^{(\zp)}$} & 9 from 6, 8\\
+\invleft{$\delta\eta\cos\alpha$ harmonic} &
+  \invmid{$v^{(\eta)}$, $\mathcal D_R^{(\eta)}$} & 3 from 2, 4\\
+\invleft{Information rate $\Irate(\tau)$} &
+  \invmid{$(v^{(\eta)})^2,(v^{(\zp)})^2$} & 3, 7\\
+\invleft{Information rate as $\tau\to0$} &
+  \invmid{$(D_T^{(\eta)})^2,(D_T^{(\zp)})^2$} & 1, 5\\
 \end{tabular}
 \end{ruledtabular}
 \end{table}
@@ -2038,10 +1846,10 @@ $m_v^{(\eta)}$.  The width gives $D_T^{(\eta)}$, and the part of it that does
 not scale with wavelength gives $D_T^{(\zp)}$.
 
 The four numbers of Eq.~\eqref{eq:observable-definitions} close on one more,
-the outward polarity $\Omega=\int\vec x\cdot\pv\,\dd^2x$---how strongly cells
-point away from the release point, and the only channel by which swimming
-feeds spreading.  Every flux in Eqs.~\eqref{eq:polar-closed-system} is a
-divergence, so inside the wall-free window it integrates away, leaving
+the outward polarity $\Omega=(1/N)\int\vec x\cdot\pv\,\dd^2x$---how strongly
+cells point away from the release point, and the only channel by which
+swimming feeds spreading.  Every flux in Eqs.~\eqref{eq:polar-closed-system}
+is a divergence, so inside the wall-free window it integrates away, leaving
 \begin{subequations}
 \label{eq:observable-balance}
 \begin{align}
@@ -2049,29 +1857,29 @@ divergence, so inside the wall-free window it integrates away, leaving
  +\frac{\chi-\mathcal D_R^{(\zp)}}{2}\,\Gv
  -\mathcal D_R^{(\eta)}\Piv,
  \label{eq:observable-polarity}\\
- \dot\Omega&=-\DR\Omega+Nv^{(0)}
+ \dot\Omega&=-\DR\Omega+v^{(0)}
  +v^{(\eta)}\Erho+v^{(\zp)}\Gp
  \nonumber\\&\quad
  -\mathcal D_R^{(\eta)}\Cp
  +\frac{\chi-\mathcal D_R^{(\zp)}}{2}\,\Crho,
  \label{eq:observable-outward}\\
- N\dot\Xc&=v^{(0)}\Pnet+v^{(\eta)}\Piv+\frac{v^{(\zp)}}{2}\Gv,
+ \dot\Xc&=v^{(0)}\Pnet+v^{(\eta)}\Piv+\frac{v^{(\zp)}}{2}\Gv,
  \label{eq:observable-centroid}\\
- N\dot S&=4ND_T^{(0)}+2v^{(0)}\Omega
+ \dot S&=4D_T^{(0)}+2v^{(0)}\Omega
  \nonumber\\&\quad
  +2v^{(\eta)}\Cp+v^{(\zp)}\Crho+4D_T^{(\eta)}\Erho+4D_T^{(\zp)}\Gp .
  \label{eq:observable-spread}
 \end{align}
 \end{subequations}
 
-The six overlaps are named for the field they weight ($\rho$ or $\pv$) and
-what they read---the level $\mathcal E$, the gradient $\mathcal G$, or the
-gradient moment about the release point $\mathcal C$:
+The six overlaps are per-cell averages, named for the field they weight
+($\rho$ or $\pv$) and what they read---the level $\mathcal E$, the gradient
+$\mathcal G$, or the gradient moment about the release point $\mathcal C$:
 \begin{equation}
 \begin{aligned}
- \Erho&=\int\rho\,\delta\eta, &\quad \Gv&=\int\rho\,\grad\eta,\\
- \Piv&=\int\delta\eta\,\pv, &\quad \Gp&=\int\pv\cdot\grad\eta,\\
- \Crho&=\int\rho\,\vec x\cdot\grad\eta, &\quad \Cp&=\int\delta\eta\,(\vec x\cdot\pv).
+ \Erho&=\frac1N\int\rho\,\delta\eta, &\quad \Gv&=\frac1N\int\rho\,\grad\eta,\\
+ \Piv&=\frac1N\int\delta\eta\,\pv, &\quad \Gp&=\frac1N\int\pv\cdot\grad\eta,\\
+ \Crho&=\frac1N\int\rho\,\vec x\cdot\grad\eta, &\quad \Cp&=\frac1N\int\delta\eta\,(\vec x\cdot\pv).
 \end{aligned}
  \label{eq:observable-overlaps}
 \end{equation}
@@ -2086,14 +1894,14 @@ Set $\varepsilon=0$ and every overlap vanishes.  Then $\Pnet$ and $\Xc$ stay
 zero by symmetry, and the remaining pair integrates in closed form,
 \begin{equation}
 \begin{aligned}
- \Omega^{(0)}&=\frac{Nv^{(0)}}{\DR}\left(1-e^{-\DR t}\right),\\
+ \Omega^{(0)}&=\frac{v^{(0)}}{\DR}\left(1-e^{-\DR t}\right),\\
  S^{(0)}(t)-S(0)&=4D_T^{(0)}t\\
  &\quad+\frac{2\bigl(v^{(0)}\bigr)^{2}}{\bigl[\DR\bigr]^{2}}
  \left(\DR t-1+e^{-\DR t}\right).
 \end{aligned}
  \label{eq:baseline-observables}
 \end{equation}
-Outward alignment saturates at $Nv^{(0)}/\DR$ within one orientational time,
+Outward alignment saturates at $v^{(0)}/\DR$ in one heading-relaxation time,
 and at the same moment the spread crosses over from
 $4D_T^{(0)}t+\bigl(v^{(0)}t\bigr)^2$ to
 $4D_{\mathrm{eff}}^{(0)}t-2\bigl(v^{(0)}\bigr)^2/[\DR]^2$: ballistic, then
@@ -2105,8 +1913,8 @@ $\DR$ before any landscape is applied---a useful calibration to have in hand.
 Take a single landscape mode of wavevector $\vec q$.  Its overlaps collapse
 straight onto the Green amplitudes of Eq.~\eqref{eq:dirac-amplitudes}.  For an
 odd mode $\varepsilon\sin(\vec q\cdot\vec x)$ about the point release of
-Sec.~\ref{sec:dirac-homogeneous}, $\Gv=N\hat q\,qA_q(t)$ and
-$\Piv=N\hat q\,B_q(t)$ with $\Erho=\Crho=\Cp=\Gp=0$; an even mode does the reverse; and a
+Sec.~\ref{sec:dirac-homogeneous}, $\Gv=\hat q\,qA_q(t)$ and
+$\Piv=\hat q\,B_q(t)$ with $\Erho=\Crho=\Cp=\Gp=0$; an even mode does the reverse; and a
 release of finite width multiplies both by its own transform.
 
 Now $A_q$ and $B_q$ are combinations of $e^{-t/\tau_{\rm slow}(q)}$ and
@@ -2173,10 +1981,10 @@ reaches at all.  The two terms are cleanly separable because the mobility term
 scales as $q^{-2}$ and this one does not: repeat the release at two
 wavelengths and read off both.
 
-The net polarity does not saturate.  It rises over $1/\DR$ to a quasi-static
+The average polarity does not saturate.  It rises over $1/\DR$ to a quasi-static
 plateau and then decays with the mode,
 \begin{equation}
- \frac{\Pnet}{N}\simeq\frac{\varepsilon q}{v^{(0)}}
+ \Pnet\simeq\frac{\varepsilon q}{v^{(0)}}
  \bigl[\mathcal V-\mathcal V_v\bigr]e^{-t/\tau_q}\,\hat q,
  \qquad
  \mathcal V_v=\frac{v^{(\zp)}}{2}+\frac{v^{(0)}v^{(\eta)}}{2\DR},
@@ -2202,7 +2010,7 @@ parts with this traceless weight gives one more pair of balance laws,
 \begin{subequations}
 \label{eq:shape-balance}
 \begin{align}
- N\dot T_{ij}&=v^{(0)}\hat\Omega_{ij}+v^{(\eta)}\hat{\mathcal C}_{p,ij}
+ \dot T_{ij}&=v^{(0)}\hat\Omega_{ij}+v^{(\eta)}\hat{\mathcal C}_{p,ij}
  +\tfrac12 v^{(\zp)}\hat{\mathcal C}_{\rho,ij},
  \label{eq:shape-moment}\\
  \dot{\hat\Omega}_{ij}&=-\DR\hat\Omega_{ij}
@@ -2213,7 +2021,7 @@ parts with this traceless weight gives one more pair of balance laws,
  \label{eq:shape-polarity}
 \end{align}
 \end{subequations}
-in which $\hat\Omega_{ij}$ is the traceless outward-polarity moment and
+in which $\hat\Omega_{ij}$ is the traceless per-cell outward-polarity moment and
 $\hat{\mathcal C}_\rho$, $\hat{\mathcal C}_p$, $\hat{\mathcal G}_p$ are the
 traceless companions of $\Crho$, $\Cp$ and $\Gp$,
 obtained by replacing $x_i\partial_j\eta$ with
@@ -2247,6 +2055,171 @@ parts of a single tensor: the trace gives $\kappa$, the traceless part gives
 $\mathcal V$, and no mode of the opposite parity is needed.  Where the two
 disagree, the population is being pushed by a spatially varying diffusivity
 rather than steered.
+
+\section{What tracking one cell adds}
+\label{sec:information}
+
+Population imaging cannot split aimed--wander, aimed--tumble and steering:
+they enter the polar-closed equations only through
+$\chi-\mathcal D_R^{(\zp)}$.  Tracking a cell over a fixed lag $\tau$ breaks
+that degeneracy, and it also splits two notions that a density picture
+conflates---navigating well and moving informatively.  The body of the paper
+does not use these observables; they are recorded here because they are the
+natural next measurement once the film of the cloud has been read.
+
+Watch one cell from $t$ to $t+\tau$.  Write $g=|\grad\eta|$ for the gradient
+strength, $\alpha$ for the \emph{heading error}---the angle between where the
+cell points and where the food is---and $\mathcal S_t=(\rv_t,\alpha_t)$ for
+the cell's state relative to the nutrient.  Every rule is judged by one and
+the same random variable, the \emph{distance made good} up the gradient the
+cell actually faced,
+\begin{equation}
+ Y^{\tau}=\bigl(\rv_{t+\tau}-\rv_t\bigr)\cdot\hat g(\rv_t).
+ \label{eq:projected-displacement}
+\end{equation}
+
+Two things can be asked of $Y^\tau$.  Its average is a
+\emph{navigation velocity} $V_\parallel$: how fast this cell really climbs.
+Its full distribution is a \emph{communication channel}, and the mutual
+information $\Irate$ it carries says how much an observer watching the cell
+learns about where it started relative to the food,
+\begin{equation}
+ V_\parallel(t;\tau)=\frac{\mathbb E\bigl[Y^\tau\bigr]}{\tau},
+ \qquad
+ \Irate(t;\tau)=\frac{I\bigl(\mathcal S_t;Y^\tau\bigr)}{\tau},
+ \label{eq:navigation-observables}
+\end{equation}
+
+Using the same variable for all nine rules puts a speed response and a tumble
+response on an equal footing: no rule-specific controller action is invented,
+and no coefficient is frozen during the window.
+
+\subsection{Navigation: the same drift, on a lag clock}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/figure-6-information-observables.pdf}
+  \caption{\textbf{What tracking single cells adds, and what it does not.}
+  All panels use a constant gradient and a common observation lag $\tau$.
+  (a) How fast a tracked cell really climbs, divided by the drift of the whole
+  cloud.  Every curve saturates at one---\emph{a single cell watched long
+  enough climbs at exactly the population's drift}---but reaches it through
+  one of only three shapes, set by how many heading relaxations the rule needs
+  before it can move a cell.  The two jitter rules (1, 5) stay flat at zero at
+  every lag.  (b) Sorting the same tracks by initial heading returns two
+  independent combinations, so pure steering (9) and pure turning (6, 8)
+  separate---which no population measurement can do.  (c) The same trick on
+  the level rules separates level--speed (3), which returns the bare
+  sensitivity $v^{(\eta)}$ as the lag closes, from level--wander and
+  level--tumble (2, 4), which vanish with the lag.  (d) How much a cell's
+  motion reveals about its state, above the baseline that a merely swimming
+  cell already provides.  \emph{Note the reversal:} the jitter rules, which
+  never carry a cell up-gradient, dominate here, while the turning rules that
+  navigate well sit below the estimator's floor.}
+  \label{fig:information}
+\end{figure}
+
+Taking the release as the window start and working to first order gives
+\begin{equation}
+ \boxed{\;V_{\parallel,j}(0;\tau)=\mathcal V_j\,\langle g\rangle\,
+ \Phi_j\!\left(\DR\tau\right)\;}
+ \label{eq:projected-velocity-result}
+\end{equation}
+with $\mathcal V_j$ the very same pulse drift as Eq.~\eqref{eq:pulse-drift},
+and only three lag shapes among all nine rules,
+\begin{equation}
+\begin{gathered}
+ W(u)=\frac{1-e^{-u}}{u},\qquad
+ \Phi(u)=1-W(u)\simeq\frac u2,\\
+ \Psi(u)=1-\frac{2-(2+u)e^{-u}}{u}\simeq\frac{u^{2}}{6},
+\end{gathered}
+ \label{eq:lag-shapes}
+\end{equation}
+distributed as
+\begin{equation}
+ \Phi_7=1,\quad
+ \Phi_{3,6,8,9}=\Phi,\quad
+ \Phi_{2,4}=\Psi,\quad
+ \mathcal V_1=\mathcal V_5=0 .
+ \label{eq:lag-hierarchy}
+\end{equation}
+
+\textbf{Result.}  \emph{Watched long enough, a tracked cell climbs at exactly
+the rate the whole cloud's centre of mass drifts}---individual navigation and
+pulse drift are one number.  The lag decides only how much of that rate is
+visible, through one of just three curves.
+
+Those three shapes are the short-time hierarchy again, now in the lag domain,
+and the counting is once more a counting of delays.  Aimed--speed needs none:
+a cell that speeds up whenever it happens to point up-gradient makes progress
+on its first step.  Level--speed, aimed--wander, aimed--tumble and steering
+need one---the heading must be biased before displacement follows.
+Level--wander and level--tumble need two.  The jitter rules never navigate at
+any lag: a diffusivity that depends on position drifts the population but not
+the individual.
+
+Sorting the windows by the cell's initial heading buys more.  The average
+climb carries $\chi-\mathcal D_R^{(\zp)}$, but the $\cos2\alpha$ harmonic of
+the same data carries $\chi+\mathcal D_R^{(\zp)}$.  Two independent
+combinations separate genuine steering from heading-dependent turning---the
+one degeneracy no population measurement can break---and it is no accident
+that the missing information sits in exactly the harmonic the closure
+discarded.
+
+\subsection{Information: what the motion gives away}
+
+At short lag the channel is Gaussian with no approximation,
+$Y^\tau=\tau\mu(\mathcal S)+\sqrt{2D_T(\mathcal S)\tau}\,Z$ with
+$\mu=v(\mathcal S)\cos\alpha$, so the rate follows in closed form,
+\begin{equation}
+ \boxed{\;\Irate(t;0^{+})=\frac{\Var[\mu(\mathcal S_t)]}{4D_T^{(0)}}
+ +\frac{\Var[\delta(\mathcal S_t)]}{4\tau}\;},
+ \label{eq:short-lag-information}
+\end{equation}
+with $\delta$ the relative change in diffusivity,
+$D_T=D_T^{(0)}[1+\delta]$.  Two features of this formula do the work.
+
+First, the baseline is already positive even with no sensing at all,
+$\Irate_0=(v^{(0)})^{2}/8D_T^{(0)}$.  A cell that merely swims moves further
+along its own heading than across it, so watching it tells you something about
+which way it pointed.  \emph{Movement information is therefore not, by itself,
+evidence of sensing}---an inference that has to be made against this baseline,
+not against zero.
+
+Second, only the rules that change the \emph{step} are legible: the two speed
+rules through $\Var[\mu]$ and the two jitter rules through $\Var[\delta]$
+[Eq.~\eqref{eq:information-cases}].  All four turning rules and steering leave
+the rate exactly at baseline, because they change the heading before anything
+has moved.  The two jitter rules are singular as well as dominant---their
+channel is a scale mixture rather than a shifted Gaussian, so the total
+information saturates and the \emph{rate} diverges as $\tau\to0$, which is why
+a common positive lag is required for any fair comparison.  And the drift
+never appears at all: shifting every outcome by the same amount tells an
+observer nothing about the state.
+
+\textbf{Result.}  \emph{Navigating well and moving informatively are
+dissociated.}  The two jitter rules never carry a cell up-gradient at any lag,
+yet they dominate what its motion reveals; level--wander and level--tumble
+navigate perfectly well and reveal almost nothing.  The comfortable intuition
+that a better forager must be a more legible one gets no support here, and an
+inference method that assumes it will misread the mechanism.
+
+\begin{readout}
+climbing rate flat at zero, every lag & a jitter rule $\Rightarrow$
+1,\,5\\[2pt]
+climbing rate saturates at once & aimed--speed $\Rightarrow$ 7\\[2pt]
+information rate diverges as $\tau\to0$ & a jitter rule again $\Rightarrow$
+1,\,5\\[2pt]
+information rate sits at the swimming baseline & a turning rule $\Rightarrow$
+2,\,4,\,6,\,8,\,9\\[2pt]
+$\cos2\alpha$ harmonic off the turning line & steering $\Rightarrow$ 9,
+separated from 6 and 8\\[2pt]
+$\delta\eta\cos\alpha$ harmonic finite as $\tau\to0$ & level--speed
+$\Rightarrow$ 3, separated from 2 and 4\\
+\end{readout}
+
+The derivations of the lag shapes, the harmonics and the information rate are
+in the next section.
 
 \section{Foraging and information: details}
 \label{app:information}
@@ -2292,7 +2265,7 @@ ratio $M\mathcal K$, so a detection needs
  M\gtrsim\mathcal K^{-1}\sim t^{-2n}.
  \label{eq:sample-size}
 \end{equation}
-That is the sampling floor of Sec.~\ref{sec:model-comparison} in closed form,
+That is the sampling floor of Appendix~\ref{app:numerics} in closed form,
 and it settles the experimental trade.  At fixed cost $Mt$ the evidence grows
 as $t^{2n-1}$, so watching longer always beats tracking more.  For Cases 2 and
 4, where $n=3$, doubling the window is worth $32$ times the cells.
@@ -2430,6 +2403,41 @@ Evaluated on the isotropic release, the four legible responses give
 
 \section{Numerical methods}
 \label{app:numerics}
+\label{sec:model-comparison}
+
+Two independent numerical descriptions test the construction in the body:
+direct simulation of the microscopic jump--diffusion,
+Eq.~\eqref{eq:sde-cont}, and a conservative finite-volume integration of the
+closed system, Eq.~\eqref{eq:polar-closed-system}.  All three calculations
+share one release, one nutrient field and one parameter set, and no transport
+coefficient is fitted.  The landscape is a single cosine of wavenumber
+$q\mathcal R=7.0156$ and amplitude $\varepsilon=0.25$, so every closed form
+in the body applies verbatim.  Circles, dashed lines and pale lines in
+Figs.~\ref{fig:macroscopic-observables} and~\ref{fig:foraging} are particles,
+the polar solver and the theory, in that order.
+
+Figure~\ref{fig:case1-validation} is the strictest sign check available:
+level--jitter accumulates where cells jiggle \emph{least}, and a theory that
+mishandles the position-dependent diffusivity gets the sign backwards.  The
+three methods agree to relative $L^{2}$ density errors of $7.2\times10^{-3}$
+and $1.0\times10^{-2}$, at cosine similarities $0.99998$ and $0.99996$.  The
+four release observables are a sharper test still, because simulated cells
+estimate them as plain averages---no binning, no bandwidth, no field to
+reconstruct.  Fitted exponents in
+Fig.~\ref{fig:macroscopic-observables} lie within a per cent of
+Table~\ref{tab:observable-hierarchy}, the structural zeros hold exactly, and
+the two jitter rules return elongations consistent with zero ($z=1.2$ and
+$-0.3$), while the other seven match theory to $1.3\%$.
+Figure~\ref{fig:foraging} recovers $\kappa$ and $\mathcal V$ to within $2.5\%$
+for every rule that has them.
+
+Residuals are of two known kinds.  Simulated cells and the coarse-grained
+solver differ by about a per cent on the polarity and centroid and by up to
+seven on the shape---the ordering of exposure to the discarded nematic
+harmonic.  The solver then departs from the first-order theory at second order
+in the response amplitude: halving every sensitivity halves the gap.  Once a
+response is resolved to better than a per cent, the residual settles at the
+size of the neglected harmonic, $(v^{(0)}q/\DRtwo)^{2}=3.8\%$ here.
 
 \subsection{Choosing the landscape}
 
@@ -2449,9 +2457,9 @@ $\tau_q=0.0102$---twice the run.  The phase $\varphi=\pi/4$ then puts equal
 odd and even content about the release, exciting centroid and spread together,
 and $\varepsilon=0.25$ keeps $\eta$ positive everywhere.
 
-\begin{figure}[tbp]
+\begin{figure*}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figures/figure-2-nutrient-landscape.pdf}
+  \includegraphics[width=0.98\textwidth]{figures/figure-2-nutrient-landscape.pdf}
   \caption{Why this mode.  (a) The landscape on the arena and (b) its cut
   along $\hat q$, both reproduced from Fig.~\ref{fig:case1-validation} for
   reference.  (c) Admissible modes are the zeros of $J_1$ (dotted), where the
@@ -2460,7 +2468,7 @@ and $\varepsilon=0.25$ keeps $\eta$ positive everywhere.
   the run time; the second zero (solid line) is the only rung where all three
   are comfortable.}
   \label{fig:landscape}
-\end{figure}
+\end{figure*}
 
 \subsection{Calibrating the sensitivities}
 
@@ -2507,9 +2515,9 @@ inside its own wall-free window, which must be rechecked for any other.
 \section{Remaining response mechanisms}
 \label{app:remaining-cases}
 
-\begin{figure*}[tp]
+\begin{figure*}[t]
  \centering
- \includegraphics[height=0.88\textheight]{../simulation/results/figures/supplementary/figure-s01-cases-2-9-summary.pdf}
+ \includegraphics[height=0.78\textheight]{figures/figure-remaining-cases.pdf}
  \caption{Three descriptions reproduce the eight remaining response
  mechanisms, all at $t=5\times10^{-3}$.  Columns are particles, the polar PDE
  and the Fourier solution, for density (left) and polarity (right).  Each
@@ -2529,7 +2537,7 @@ panels, with the same limits and spatial window as
 Fig.~\ref{fig:case1-validation} and both supplementary videos.
 
 Reading the rows against that common scale is the point of the figure.  With
-the sensitivities calibrated as in Sec.~\ref{sec:model-comparison}, no
+the sensitivities calibrated as in Appendix~\ref{app:numerics}, no
 mechanism is off-scale and none is invisible, so what differs between rows is
 the \emph{shape} of the response, not its size.  Cases 2 and 4 remain
 indistinguishable, as do Cases 6, 8 and 9 in density---the model's own

@@ -53,7 +53,9 @@ def prepare_axis(
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     if colorbar:
-        ax.figure.colorbar(image, ax=ax, fraction=0.046, pad=0.04, label="c(r)")
+        ax.figure.colorbar(
+            image, ax=ax, fraction=0.046, pad=0.04, label=r"$\eta(\mathbf r)$"
+        )
 
 
 def video_frame_indices(

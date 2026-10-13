@@ -1,4 +1,4 @@
-"""MP4 rendering for one case or all eight canonical cases."""
+"""MP4 rendering for one case or all nine canonical cases."""
 
 from __future__ import annotations
 
@@ -23,17 +23,6 @@ from .common import (
 )
 from .encoding import choose_codec
 
-COMPARISON_TITLES = {
-    1: "Concentration-dependent diffusion",
-    2: "Concentration-dependent rotation",
-    3: "Orthokinesis",
-    4: "Concentration-dependent tumbling",
-    5: "Alignment-gated translation noise",
-    6: "Alignment-gated rotation noise",
-    7: "Alignment-gated propulsion",
-    8: "Local tumble surrogate",
-}
-
 CASE_COLORS = (
     "#0072B2",
     "#E69F00",
@@ -43,6 +32,7 @@ CASE_COLORS = (
     "#56B4E9",
     "#F0E442",
     "#6A3D9A",
+    "#8C564B",
 )
 
 
@@ -169,8 +159,8 @@ def render_single_video(
         event_text.set_text("  ".join(events))
         status.set_text(
             f"t = {trajectory.times[index]:9.3g}\n"
-            f"c = {trajectory.concentration[index]:7.3f}   "
-            f"S = {trajectory.alignment[index]:+7.3f}\n"
+            f"eta = {trajectory.eta[index]:7.3f}   "
+            f"zeta = {trajectory.zeta[index]:+7.3f}\n"
             f"v = {trajectory.speed[index]:7.3f}   "
             f"D_T = {trajectory.translational_diffusivity[index]:7.4f}\n"
             f"D_R = {trajectory.rotational_diffusivity[index]:7.3f}   "
@@ -190,13 +180,13 @@ def render_comparison_video(
     config: ProjectConfig,
     output_path: str | Path,
 ) -> Path:
-    if [trajectory.case_number for trajectory in trajectories] != list(range(1, 9)):
-        raise ValueError("comparison video expects trajectories for cases 1 through 8")
+    if [trajectory.case_number for trajectory in trajectories] != list(range(1, 10)):
+        raise ValueError("comparison video expects trajectories for cases 1 through 9")
 
     output = Path(output_path).expanduser().resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     values, extent = field_image(field, config.domain.radius, config.video.field_grid)
-    figure, axes = plt.subplots(2, 4, figsize=(14.0, 7.2), constrained_layout=True)
+    figure, axes = plt.subplots(3, 3, figsize=(10.8, 10.4), constrained_layout=True)
     lines = []
     particles = []
     directions = []
@@ -208,7 +198,7 @@ def render_comparison_video(
             values,
             extent,
             1.0,
-            title=f"{case.number}. {case.math_label}\n{COMPARISON_TITLES[case.number]}",
+            title=f"{case.number}. {case.math_label}\n{case.title}",
         )
         axis.title.set_fontsize(9.5)
         axis.set_xticks([])
@@ -254,7 +244,7 @@ def render_comparison_video(
             direction.set_offsets(xy[None, :])
             direction.set_UVC([vector[0]], [vector[1]])
         clock.set_text(
-            f"Eight canonical mechanisms — t = {trajectories[0].times[index]:.4g}"
+            f"Nine canonical mechanisms — t = {trajectories[0].times[index]:.4g}"
         )
         return [*lines, *particles, *directions, clock]
 
@@ -270,13 +260,13 @@ def render_overlay_msd_video(
     config: ProjectConfig,
     output_path: str | Path,
 ) -> Path:
-    """Overlay all eight paths in one disk and animate paired ensemble MSD."""
+    """Overlay all nine paths in one disk and animate paired ensemble MSD."""
 
-    expected_cases = list(range(1, 9))
+    expected_cases = list(range(1, 10))
     if [trajectory.case_number for trajectory in trajectories] != expected_cases:
-        raise ValueError("overlay video expects trajectories for cases 1 through 8")
+        raise ValueError("overlay video expects trajectories for cases 1 through 9")
     if list(msd.case_numbers) != expected_cases:
-        raise ValueError("MSD result must contain cases 1 through 8")
+        raise ValueError("MSD result must contain cases 1 through 9")
     if not np.array_equal(trajectories[0].times, msd.times):
         raise ValueError("trajectory and MSD time grids must match")
 
