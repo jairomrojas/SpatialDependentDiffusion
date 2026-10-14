@@ -18,7 +18,7 @@ OMP_NUM_THREADS=8 OMP_PROC_BIND=close OMP_PLACES=cores \
 
 Keep the project on the WSL ext4 virtual disk rather than `/mnt/c`; the current
 workspace already satisfies that condition. On the reference workstation,
-heavy jobs run under `science-run` inside a shared memory slice capped at
+heavy jobs run under `science_run` inside a shared memory slice capped at
 6 GiB (5 GiB soft limit, 1 GiB swap; updated 2026-10-13). Tests and individual
 production stages fit; one full microscopic archive (~4.8 GB once decompressed)
 nearly fills it, and loading two archives in one job will be killed.
