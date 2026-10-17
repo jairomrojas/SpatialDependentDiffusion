@@ -1,5 +1,7 @@
 # Repository engineering audit
 
+Paths below are as of the audit; since 2026-10-16 the package lives in `model/solvers/chem_swimmer/`, scripts in `analysis/`, results in `outputs/` (see the root `README.md`), and it is no longer packaged for installation.
+
 ## Executive assessment
 
 The numerical core is unusually rigorous for a research repository. It has a

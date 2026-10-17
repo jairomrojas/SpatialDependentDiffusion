@@ -13,9 +13,9 @@ import numpy as np
 from PIL import Image
 from scipy import special
 
-from chem_swimmer._version import PDF_SCHEMA_VERSION
-from chem_swimmer.accelerated import state_batch_numba
-from chem_swimmer.analytic import (
+from model.solvers.chem_swimmer._version import PDF_SCHEMA_VERSION
+from model.solvers.chem_swimmer.accelerated import state_batch_numba
+from model.solvers.chem_swimmer.analytic import (
     _constant_mode_index,
     build_neumann_bessel_basis,
     compute_analytic_pdf,
@@ -26,12 +26,12 @@ from chem_swimmer.analytic import (
     solve_analytic_spectrum,
     uniform_projection,
 )
-from chem_swimmer.boundary import advance_in_disk
-from chem_swimmer.boundary_layer import sliding_wall_boundary_layer
-from chem_swimmer.cases import STRATEGY_FIGURE_STEMS
-from chem_swimmer.cli import _load, build_parser
-from chem_swimmer.config import Responses, load_config
-from chem_swimmer.density import (
+from model.solvers.chem_swimmer.boundary import advance_in_disk
+from model.solvers.chem_swimmer.boundary_layer import sliding_wall_boundary_layer
+from model.solvers.chem_swimmer.cases import STRATEGY_FIGURE_STEMS
+from model.solvers.chem_swimmer.cli import _load, build_parser
+from model.solvers.chem_swimmer.config import Responses, load_config
+from model.solvers.chem_swimmer.density import (
     PositionPDFResult,
     _accumulate_angular_moments,
     _convolve_axis,
@@ -43,32 +43,32 @@ from chem_swimmer.density import (
     resolve_density_ensemble_size,
     save_position_pdf,
 )
-from chem_swimmer.diagnostics import timestep_report
-from chem_swimmer.fields import create_field, disk_area_average
-from chem_swimmer.fields.base import positions_array
-from chem_swimmer.fields.builtin import GaussianField, PeriodicField
-from chem_swimmer.fields.user_field import UserField
-from chem_swimmer.kinetics import (
+from model.solvers.chem_swimmer.diagnostics import timestep_report
+from model.solvers.chem_swimmer.fields import create_field, disk_area_average
+from model.solvers.chem_swimmer.fields.base import positions_array
+from model.solvers.chem_swimmer.fields.builtin import GaussianField, PeriodicField
+from model.solvers.chem_swimmer.fields.user_field import UserField
+from model.solvers.chem_swimmer.kinetics import (
     KineticLaw,
     angular_steering_rate,
     delta_D_eff_coefficient,
     macroscopic_coefficients,
     pulse_centroid_drift,
 )
-from chem_swimmer.macroscopic import (
+from model.solvers.chem_swimmer.macroscopic import (
     _initial_density,
     build_macroscopic_plan,
     compute_macroscopic_pdf,
 )
-from chem_swimmer.moment import build_moment_plan, compute_moment_pdf
-from chem_swimmer.nematic import (
+from model.solvers.chem_swimmer.moment import build_moment_plan, compute_moment_pdf
+from model.solvers.chem_swimmer.nematic import (
     nematic_closure_rows,
     nematic_frobenius,
     reconstruct_density_flux,
 )
-from chem_swimmer.noise import Innovations
-from chem_swimmer.numerics import build_resolution_plan, resolve_numerics
-from chem_swimmer.observables import (
+from model.solvers.chem_swimmer.noise import Innovations
+from model.solvers.chem_swimmer.numerics import build_resolution_plan, resolve_numerics
+from model.solvers.chem_swimmer.observables import (
     FIRST_NEUMANN_DISK_WAVENUMBER,
     POINT_RELEASE_EXPONENTS,
     SHORT_TIME_EXPONENTS,
@@ -88,21 +88,24 @@ from chem_swimmer.observables import (
     uptake_gain,
     uptake_rate,
 )
-from chem_swimmer.simulator import simulate, simulate_all_cases
-from chem_swimmer.statistics import compute_ensemble_msd, free_space_baseline_msd
-from chem_swimmer.turning import (
+from model.solvers.chem_swimmer.simulator import simulate, simulate_all_cases
+from model.solvers.chem_swimmer.statistics import (
+    compute_ensemble_msd,
+    free_space_baseline_msd,
+)
+from model.solvers.chem_swimmer.turning import (
     DiscreteTurningKernel,
     TabulatedTurningKernel,
     WrappedNormalTurningKernel,
     create_turning_kernel,
     sample_tumble_heading,
 )
-from chem_swimmer.visualization.comparison_plot import (
+from model.solvers.chem_swimmer.visualization.comparison_plot import (
     render_density_frames_vs_time,
     render_initial_condition_contours,
     render_polarity_frames_vs_time,
 )
-from chem_swimmer.visualization.density_video import (
+from model.solvers.chem_swimmer.visualization.density_video import (
     _case_specific_linear_limits,
     _density_frame_indices,
     _normalize_linear_difference,
@@ -112,28 +115,30 @@ from chem_swimmer.visualization.density_video import (
     synchronized_case_linear_limits,
     synchronized_global_linear_limits,
 )
-from chem_swimmer.visualization.field_plot import render_chemical_field
-from chem_swimmer.visualization.inference_plot import (
+from model.solvers.chem_swimmer.visualization.field_plot import render_chemical_field
+from model.solvers.chem_swimmer.visualization.inference_plot import (
     render_microscopic_mechanism_report,
 )
-from chem_swimmer.visualization.manuscript_plot import (
+from model.solvers.chem_swimmer.visualization.manuscript_plot import (
     render_manuscript_strategy_figures,
 )
-from chem_swimmer.visualization.nematic_plot import render_nematic_closure_report
-from chem_swimmer.visualization.polarity_plot import (
+from model.solvers.chem_swimmer.visualization.nematic_plot import (
+    render_nematic_closure_report,
+)
+from model.solvers.chem_swimmer.visualization.polarity_plot import (
     _adiabatic_polarity,
     _masked_directional_gradient,
     compute_theoretical_polarity_field,
     render_polarity_report,
 )
-from chem_swimmer.visualization.polarity_video import (
+from model.solvers.chem_swimmer.visualization.polarity_video import (
     _polarity_case_limits,
     render_polarity_comparison_video,
     render_polarity_difference_video,
     synchronized_polarity_case_limits,
 )
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 class FieldTests(unittest.TestCase):
@@ -148,7 +153,7 @@ class FieldTests(unittest.TestCase):
         )
         eta0 = disk_area_average(field, 1.0)
         self.assertAlmostEqual(eta0, 0.98, places=13)
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         law = KineticLaw(config.kinetics, Responses.zeros(), eta0)
         state = law.evaluate(
             float(field.value(np.zeros(2))),
@@ -198,7 +203,7 @@ class FieldTests(unittest.TestCase):
         )
 
     def test_invalid_field_inputs_fail_early(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         with self.assertRaisesRegex(ValueError, r"unknown .*field"):
             create_field({**config.field, "sigm_typo": [1.0, 1.0]})
         with self.assertRaisesRegex(ValueError, "finite"):
@@ -212,7 +217,7 @@ class FieldTests(unittest.TestCase):
             positions_array(1.0)
 
     def test_unknown_top_level_config_section_is_rejected(self) -> None:
-        source = PROJECT_ROOT / "config" / "default.toml"
+        source = PROJECT_ROOT / "model" / "parameters" / "default.toml"
         with TemporaryDirectory() as directory:
             modified = Path(directory) / "unknown_section.toml"
             modified.write_text(
@@ -223,7 +228,7 @@ class FieldTests(unittest.TestCase):
                 load_config(modified)
 
     def test_legacy_a1_configuration_fails_with_migration_guidance(self) -> None:
-        source = PROJECT_ROOT / "config" / "default.toml"
+        source = PROJECT_ROOT / "model" / "parameters" / "default.toml"
         text = source.read_text(encoding="utf-8")
         text = text.replace("\n[turning]\n", "\na1 = 0.30\n\n[turning]\n", 1)
         with TemporaryDirectory() as directory:
@@ -283,7 +288,7 @@ class TumbleTests(unittest.TestCase):
         self.assertEqual(configured.P_turn, 1.0)
 
     def test_discrete_kernel_runs_through_exact_python_fallback(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         config = replace(
             config.with_overrides(duration=2.0e-5, engine="auto"),
             kinetics=replace(config.kinetics, v0=0.0, D_R0=0.0, lambda0=100.0),
@@ -371,7 +376,7 @@ class FluxDissipationTests(unittest.TestCase):
     """
 
     def _plan(self, numerics_overrides=None, **density_overrides):
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         if density_overrides:
             config = replace(
                 config, density=replace(config.density, **density_overrides)
@@ -421,7 +426,7 @@ class LongTimeCoefficientTests(unittest.TestCase):
     """
 
     def _background(self):
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         return config.kinetics, config.responses, 0.30
 
     def test_pulse_drift_is_kappa_plus_diffusivity_shift(self) -> None:
@@ -472,7 +477,7 @@ class MacroscopicObservableTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        cls.config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         cls.field = create_field(cls.config.field)
         cls.times = np.linspace(0.0, cls.config.simulation.duration, 121)
         cls.overlaps = background_overlaps(cls.config, cls.field, cls.times)
@@ -694,10 +699,10 @@ class SaturationObservableTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        from chem_swimmer import observables as ob
+        from model.solvers.chem_swimmer import observables as ob
 
         cls.ob = ob
-        base = load_config(PROJECT_ROOT / "config" / "foraging.toml")
+        base = load_config(PROJECT_ROOT / "model" / "parameters" / "foraging.toml")
         # The saturation laws assume the released population eventually samples
         # a landscape of zero mean.  The project defines the reference level as
         # the disk average, which for a cosine mode is 2 J_1(qR)/(qR); tuning
@@ -803,10 +808,12 @@ class NavigationObservableTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        from chem_swimmer import information as nav
+        from model.solvers.chem_swimmer import information as nav
 
         cls.nav = nav
-        cls.config = load_config(PROJECT_ROOT / "config" / "navigation.toml")
+        cls.config = load_config(
+            PROJECT_ROOT / "model" / "parameters" / "navigation.toml"
+        )
         cls.field = create_field(cls.config.field)
         cls.gradient = float(
             np.linalg.norm(nav.uniform_gradient(cls.config, cls.field))
@@ -932,7 +939,10 @@ class TurningMomentTests(unittest.TestCase):
     """Higher cosine moments of the tumble kernel, needed past nematic order."""
 
     def test_wrapped_normal_moments_follow_the_gaussian_law(self):
-        from chem_swimmer.turning import create_turning_kernel, turning_cosine_moment
+        from model.solvers.chem_swimmer.turning import (
+            create_turning_kernel,
+            turning_cosine_moment,
+        )
 
         kernel = create_turning_kernel({"kind": "wrapped_normal", "P_turn": 0.3})
         variance = -2.0 * math.log(0.3)
@@ -959,7 +969,9 @@ class ForagingObservableTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.config = load_config(PROJECT_ROOT / "config" / "foraging.toml")
+        cls.config = load_config(
+            PROJECT_ROOT / "model" / "parameters" / "foraging.toml"
+        )
         cls.field = create_field(cls.config.field)
 
     def _harvest_time(self) -> float:
@@ -996,7 +1008,7 @@ class ForagingObservableTests(unittest.TestCase):
     def test_periodic_field_matches_its_native_kernel(self) -> None:
         """The Numba branch must reproduce the readable Python field exactly."""
 
-        from chem_swimmer.accelerated import (
+        from model.solvers.chem_swimmer.accelerated import (
             _field_value_gradient,
             numba_available_for,
             pack_field,
@@ -1137,7 +1149,7 @@ class ForagingObservableTests(unittest.TestCase):
 
 class TheoryCoefficientTests(unittest.TestCase):
     def test_cases_match_table_2(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         base = replace(
             config.kinetics,
             v0=0.1,
@@ -1168,7 +1180,7 @@ class TheoryCoefficientTests(unittest.TestCase):
             self.assertAlmostEqual(chi, expected_chi)
 
     def test_positive_angular_steering_rotates_toward_gradient(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         responses = config.responses.only_case(9)
         gradient = np.asarray([1.0, 0.0])
         heading = 0.5 * np.pi
@@ -1182,7 +1194,7 @@ class TheoryCoefficientTests(unittest.TestCase):
         )
 
     def test_zero_orientation_relaxation_is_valid_for_simulation(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         base = replace(
             config.kinetics,
             v0=0.0,
@@ -1224,7 +1236,7 @@ class TheoryCoefficientTests(unittest.TestCase):
 
 class BoundaryLayerTests(unittest.TestCase):
     def test_no_propulsion_or_no_relaxation_gives_no_layer(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         P_turn = create_turning_kernel(config.turning).P_turn
         no_propulsion = replace(config.kinetics, v0=0.0)
         layer = sliding_wall_boundary_layer(no_propulsion, P_turn)
@@ -1239,7 +1251,7 @@ class BoundaryLayerTests(unittest.TestCase):
         self.assertTrue(math.isnan(frozen.wall_polarity_over_bulk_density))
 
     def test_default_configuration_matches_hand_derivation(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         P_turn = create_turning_kernel(config.turning).P_turn
         layer = sliding_wall_boundary_layer(config.kinetics, P_turn)
         v0, D_T0 = config.kinetics.v0, config.kinetics.D_T0
@@ -1271,7 +1283,9 @@ class BoundaryLayerTests(unittest.TestCase):
             lambda0 = float(rng.uniform(0.0, 300.0))
             P_turn = float(rng.uniform(-0.9, 0.9))
             background = replace(
-                load_config(PROJECT_ROOT / "config" / "default.toml").kinetics,
+                load_config(
+                    PROJECT_ROOT / "model" / "parameters" / "default.toml"
+                ).kinetics,
                 v0=v0,
                 D_T0=D_T0,
                 D_R0=D_R0,
@@ -1319,7 +1333,9 @@ class BoundaryLayerTests(unittest.TestCase):
 
 class SimulatorTests(unittest.TestCase):
     def test_short_run_is_reproducible_and_stays_in_disk(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml").with_overrides(
+        config = load_config(
+            PROJECT_ROOT / "model" / "parameters" / "default.toml"
+        ).with_overrides(
             duration=1.6e-6,
             dt=8.0e-7,
         )
@@ -1332,7 +1348,9 @@ class SimulatorTests(unittest.TestCase):
         self.assertEqual(first.times[-1], 1.6e-6)
 
     def test_trajectory_outputs_are_dimensionless(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml").with_overrides(
+        config = load_config(
+            PROJECT_ROOT / "model" / "parameters" / "default.toml"
+        ).with_overrides(
             duration=8.0e-7,
             dt=8.0e-7,
         )
@@ -1357,7 +1375,9 @@ class SimulatorTests(unittest.TestCase):
         )
 
     def test_all_cases_share_center_and_driving_noise(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml").with_overrides(
+        config = load_config(
+            PROJECT_ROOT / "model" / "parameters" / "default.toml"
+        ).with_overrides(
             duration=8.0e-7,
             dt=8.0e-7,
         )
@@ -1370,7 +1390,9 @@ class SimulatorTests(unittest.TestCase):
             np.testing.assert_array_equal(trajectory.headings, reference.headings)
 
     def test_ensemble_msd_starts_at_zero(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml").with_overrides(
+        config = load_config(
+            PROJECT_ROOT / "model" / "parameters" / "default.toml"
+        ).with_overrides(
             duration=8.0e-7,
             dt=8.0e-7,
         )
@@ -1380,7 +1402,9 @@ class SimulatorTests(unittest.TestCase):
         self.assertTrue(np.all(result.mean >= 0.0))
 
     def test_numba_matches_readable_reference(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml").with_overrides(
+        config = load_config(
+            PROJECT_ROOT / "model" / "parameters" / "default.toml"
+        ).with_overrides(
             duration=8.0e-6,
             dt=4.0e-6,
         )
@@ -1410,7 +1434,9 @@ class SimulatorTests(unittest.TestCase):
         np.testing.assert_array_equal(native.tumble_counts, readable.tumble_counts)
 
     def test_numba_matches_readable_angular_steering(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml").with_overrides(
+        config = load_config(
+            PROJECT_ROOT / "model" / "parameters" / "default.toml"
+        ).with_overrides(
             duration=8.0e-6,
             dt=4.0e-6,
         )
@@ -1433,7 +1459,9 @@ class SimulatorTests(unittest.TestCase):
         np.testing.assert_allclose(native.headings, readable.headings, atol=1.0e-14)
 
     def test_numba_matches_reference_at_sliding_wall(self) -> None:
-        base = load_config(PROJECT_ROOT / "config" / "default.toml").with_overrides(
+        base = load_config(
+            PROJECT_ROOT / "model" / "parameters" / "default.toml"
+        ).with_overrides(
             duration=8.0e-6,
             dt=4.0e-6,
         )
@@ -1473,7 +1501,7 @@ class SimulatorTests(unittest.TestCase):
 
 class ResolutionTests(unittest.TestCase):
     def test_nonfinite_configuration_is_rejected(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         invalid = replace(
             config,
             responses=replace(config.responses, v_zeta=float("nan")),
@@ -1482,7 +1510,7 @@ class ResolutionTests(unittest.TestCase):
             invalid.validate()
 
     def test_default_profile_meets_working_theory_targets(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         plan = build_resolution_plan(
             config,
             create_field(config.field),
@@ -1538,7 +1566,7 @@ class ResolutionTests(unittest.TestCase):
         )
 
     def test_radius_and_diffusion_define_requested_scales(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         field = create_field(config.field)
         plan = build_resolution_plan(config, field, tuple(range(1, 10)))
         self.assertEqual(plan.scales.length, config.domain.radius)
@@ -1564,7 +1592,7 @@ class ResolutionTests(unittest.TestCase):
         )
 
     def test_timestep_report_covers_every_active_constraint(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         plan = build_resolution_plan(
             config, create_field(config.field), tuple(range(10))
         )
@@ -1573,7 +1601,7 @@ class ResolutionTests(unittest.TestCase):
             self.assertIn(constraint, report)
 
     def test_default_paper_run_has_one_thousand_physical_updates(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         self.assertEqual(config.simulation.dt, 5.0e-6)
         self.assertEqual(
             round(config.simulation.duration / config.simulation.dt),
@@ -1581,7 +1609,7 @@ class ResolutionTests(unittest.TestCase):
         )
 
     def test_field_grid_resolves_smallest_gaussian_width(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         plan = build_resolution_plan(config, create_field(config.field), (8,))
         spacing = 2.0 * config.domain.radius / (plan.field_grid - 1)
         self.assertLessEqual(
@@ -1590,16 +1618,16 @@ class ResolutionTests(unittest.TestCase):
         )
 
     def test_unsafe_manual_dt_is_rejected(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml").with_overrides(
-            dt=0.1
-        )
+        config = load_config(
+            PROJECT_ROOT / "model" / "parameters" / "default.toml"
+        ).with_overrides(dt=0.1)
         with self.assertRaisesRegex(ValueError, "too large"):
             build_resolution_plan(config, create_field(config.field), (8,))
 
     def test_high_velocity_reduces_automatic_dt(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml").with_overrides(
-            dt="auto"
-        )
+        config = load_config(
+            PROJECT_ROOT / "model" / "parameters" / "default.toml"
+        ).with_overrides(dt="auto")
         fast = replace(
             config,
             kinetics=replace(config.kinetics, v0=20000.0),
@@ -1613,7 +1641,7 @@ class ResolutionTests(unittest.TestCase):
         )
 
     def test_underresolved_manual_field_grid_is_rejected(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         coarse = replace(
             config,
             video=replace(config.video, field_grid=33),
@@ -1625,7 +1653,7 @@ class ResolutionTests(unittest.TestCase):
 class ProbabilityDensityTests(unittest.TestCase):
     @staticmethod
     def _small_density_config():
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         return replace(
             config.with_overrides(duration=8.0e-7, dt=8.0e-7, progress=False),
             density=replace(
@@ -1644,7 +1672,7 @@ class ProbabilityDensityTests(unittest.TestCase):
         )
 
     def test_automatic_M_meets_kernel_sample_target(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         count = recommended_ensemble_size(config.density)
         self.assertEqual(count, 1048576)
         self.assertGreaterEqual(
@@ -2173,7 +2201,7 @@ class ProbabilityDensityTests(unittest.TestCase):
 class MacroscopicDensityTests(unittest.TestCase):
     @staticmethod
     def _small_macro_config():
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         return replace(
             config.with_overrides(duration=0.002, progress=False),
             field={
@@ -2434,7 +2462,7 @@ class MacroscopicDensityTests(unittest.TestCase):
 class AnalyticSolutionTests(unittest.TestCase):
     @staticmethod
     def _small_analytic_config(*, gradient=(0.2, -0.1)):
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         return replace(
             config.with_overrides(duration=0.002, progress=False),
             field={
@@ -2929,7 +2957,7 @@ class ComparisonVideoTests(unittest.TestCase):
             self.assertGreater(output.stat().st_size, 100)
 
     def test_default_comparison_schedule_never_repeats_a_saved_state(self) -> None:
-        config = load_config(PROJECT_ROOT / "config" / "default.toml")
+        config = load_config(PROJECT_ROOT / "model" / "parameters" / "default.toml")
         result = SimpleNamespace(
             times=np.linspace(0.0, config.simulation.duration, 101)
         )

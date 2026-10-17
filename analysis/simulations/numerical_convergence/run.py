@@ -4,21 +4,19 @@ from __future__ import annotations
 
 import argparse
 import csv
-import sys
 from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
-from chem_swimmer.accelerated import state_batch_numba
-from chem_swimmer.config import load_config
-from chem_swimmer.density import PDF_CASES, smooth_density_stack
-from chem_swimmer.fields import create_field
-from chem_swimmer.kinetics import macroscopic_coefficients
-from chem_swimmer.numerics import build_resolution_plan
+from model.solvers.chem_swimmer.accelerated import state_batch_numba
+from model.solvers.chem_swimmer.config import load_config
+from model.solvers.chem_swimmer.density import PDF_CASES, smooth_density_stack
+from model.solvers.chem_swimmer.fields import create_field
+from model.solvers.chem_swimmer.kinetics import macroscopic_coefficients
+from model.solvers.chem_swimmer.numerics import build_resolution_plan
 
 MICRO_CASES = (0, 2, 3, 4, 5)
 
@@ -150,7 +148,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=Path,
-        default=PROJECT_ROOT / "config" / "default.toml",
+        default=PROJECT_ROOT / "model" / "parameters" / "default.toml",
     )
     parser.add_argument("--ensemble", type=int, default=4096)
     parser.add_argument("--dt-factors", default="1,2,4")
@@ -159,7 +157,12 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=PROJECT_ROOT / "results" / "data" / "numerical_convergence_audit.csv",
+        default=PROJECT_ROOT
+        / "outputs"
+        / "simulations"
+        / "population_release"
+        / "data"
+        / "numerical_convergence_audit.csv",
     )
     args = parser.parse_args()
     factors = tuple(sorted({int(value) for value in args.dt_factors.split(",")}))

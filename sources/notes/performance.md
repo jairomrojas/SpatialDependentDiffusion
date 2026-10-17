@@ -9,11 +9,10 @@ Do not assume that Linux CPU numbers 0--7 are physical P-cores: WSL exposes
 virtual CPUs, and the host hypervisor retains the final placement decision.^1
 
 ```bash
-cd simulation
 OMP_NUM_THREADS=8 OMP_PROC_BIND=close OMP_PLACES=cores \
-  taskset -c 0-7 python scripts/benchmark_performance.py \
+  taskset -c 0-7 python -m analysis.simulations.performance_benchmark.run \
   --threads 8 --batch-size 64 256 1024 \
-  --output results/benchmark-arrow-lake.json
+  --output outputs/simulations/population_release/benchmark-arrow-lake.json
 ```
 
 Keep the project on the WSL ext4 virtual disk rather than `/mnt/c`; the current

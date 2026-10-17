@@ -15,17 +15,16 @@ import sys
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+ROOT = Path(__file__).resolve().parents[3]
 from dataclasses import replace
 
 import numpy as np
 
-import chem_swimmer.density as D
-import chem_swimmer.polar_fourier as PF
-from chem_swimmer.config import load_config
-from chem_swimmer.density import PDF_CASES
-from chem_swimmer.fields import create_field
+import model.solvers.chem_swimmer.density as D
+import model.solvers.chem_swimmer.polar_fourier as PF
+from model.solvers.chem_swimmer.config import load_config
+from model.solvers.chem_swimmer.density import PDF_CASES
+from model.solvers.chem_swimmer.fields import create_field
 
 
 def response_density(res, case):
@@ -51,7 +50,7 @@ def disk_norm_factory(coordinates):
 M = int(sys.argv[1]) if len(sys.argv) > 1 else 262144
 NSEED = int(sys.argv[2]) if len(sys.argv) > 2 else 6
 
-base = load_config(ROOT / "config" / "default.toml")
+base = load_config(ROOT / "model" / "parameters" / "default.toml")
 field = create_field(base.field)
 t0 = time.time()
 ref, _ = PF.compute_polar_fourier_pdf(base, field)

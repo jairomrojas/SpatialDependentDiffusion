@@ -16,9 +16,17 @@ import math
 import random
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 FIGURE_DIRECTORY = PROJECT_ROOT / "manuscript" / "figures"
-OUT = FIGURE_DIRECTORY / "figure-1-response-rules.svg"
+# The SVG is an intermediate; only the PDF belongs in manuscript/.
+OUT = (
+    PROJECT_ROOT
+    / "outputs"
+    / "analysis"
+    / "manuscript"
+    / "figure_1_response_rules"
+    / "figure-1-response-rules.svg"
+)
 PDF_OUT = FIGURE_DIRECTORY / "figure-1-response-rules.pdf"
 
 # Canvas. Sized for a preprint / two-column PDF (~7 in wide).
@@ -1189,6 +1197,7 @@ def build() -> None:
 
     legend(svg)
     svg.add("</svg>")
+    OUT.parent.mkdir(parents=True, exist_ok=True)
     svg.write(OUT)
     print(f"wrote {OUT}")
     try:

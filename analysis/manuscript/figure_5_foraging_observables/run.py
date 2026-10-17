@@ -18,24 +18,41 @@ import time
 from dataclasses import replace
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+ROOT = Path(__file__).resolve().parents[3]
 
 import numpy as np
 
-from chem_swimmer import observables as ob
-from chem_swimmer.config import load_config
-from chem_swimmer.density import PDF_CASES, compute_position_pdf
-from chem_swimmer.fields import create_field
-from chem_swimmer.moment import build_moment_plan
-from chem_swimmer.visualization.foraging_plot import render_foraging_report
+from model.solvers.chem_swimmer import observables as ob
+from model.solvers.chem_swimmer.config import load_config
+from model.solvers.chem_swimmer.density import PDF_CASES, compute_position_pdf
+from model.solvers.chem_swimmer.fields import create_field
+from model.solvers.chem_swimmer.moment import build_moment_plan
+from model.solvers.chem_swimmer.visualization.foraging_plot import (
+    render_foraging_report,
+)
 
-ARCHIVE = ROOT / "results" / "data" / "foraging-observables.npz"
-METRICS = ROOT / "results" / "metrics" / "foraging-observables.csv"
-FIGURE = ROOT.parent / "manuscript" / "figures" / "figure-5-foraging-observables.pdf"
+ARCHIVE = (
+    ROOT
+    / "outputs"
+    / "simulations"
+    / "population_release"
+    / "data"
+    / "foraging-observables.npz"
+)
+METRICS = (
+    ROOT
+    / "outputs"
+    / "simulations"
+    / "population_release"
+    / "metrics"
+    / "foraging-observables.csv"
+)
+FIGURE = ROOT / "manuscript" / "figures" / "figure-5-foraging-observables.pdf"
 SUPPLEMENT = (
     ROOT
-    / "results"
+    / "outputs"
+    / "simulations"
+    / "population_release"
     / "figures"
     / "supplementary"
     / "figure-s17-foraging-observables.pdf"
@@ -76,7 +93,7 @@ def _uptake_series(config, field, times=None):
 def main() -> None:
     reuse = "--reuse" in sys.argv[1:]
     arguments = [value for value in sys.argv[1:] if value != "--reuse"]
-    base = load_config(ROOT / "config" / "foraging.toml")
+    base = load_config(ROOT / "model" / "parameters" / "foraging.toml")
     field = create_field(base.field)
     ensemble = int(arguments[0]) if arguments else base.density.ensemble_size
     wavenumber = field.wavenumber
@@ -133,7 +150,7 @@ def main() -> None:
 
     # --- panel (c): distinguishability on the paper's landscape ---
     start = time.time()
-    paper = load_config(ROOT / "config" / "default.toml")
+    paper = load_config(ROOT / "model" / "parameters" / "default.toml")
     paper = replace(
         paper,
         simulation=replace(

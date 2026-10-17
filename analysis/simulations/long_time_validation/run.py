@@ -27,21 +27,27 @@ import time
 from dataclasses import replace
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+ROOT = Path(__file__).resolve().parents[3]
 
 import numpy as np
 
-from chem_swimmer.config import load_config
-from chem_swimmer.density import PDF_CASES, compute_position_pdf
-from chem_swimmer.fields import create_field
-from chem_swimmer.macroscopic import compute_macroscopic_pdf
-from chem_swimmer.polar_fourier import compute_polar_fourier_pdf
+from model.solvers.chem_swimmer.config import load_config
+from model.solvers.chem_swimmer.density import PDF_CASES, compute_position_pdf
+from model.solvers.chem_swimmer.fields import create_field
+from model.solvers.chem_swimmer.macroscopic import compute_macroscopic_pdf
+from model.solvers.chem_swimmer.polar_fourier import compute_polar_fourier_pdf
 
 DURATION = float(sys.argv[1]) if len(sys.argv) > 1 else 5.0e-3
 ENSEMBLE = int(sys.argv[2]) if len(sys.argv) > 2 else 1_048_576
 SEEDS = int(sys.argv[3]) if len(sys.argv) > 3 else 3
-OUTPUT = ROOT / "results" / "metrics" / "long-time-validation.csv"
+OUTPUT = (
+    ROOT
+    / "outputs"
+    / "simulations"
+    / "population_release"
+    / "metrics"
+    / "long-time-validation.csv"
+)
 
 
 def response(result, case):
@@ -54,7 +60,7 @@ def response(result, case):
 
 
 def main() -> None:
-    base = load_config(ROOT / "config" / "default.toml")
+    base = load_config(ROOT / "model" / "parameters" / "default.toml")
     config = replace(
         base,
         simulation=replace(base.simulation, duration=DURATION),

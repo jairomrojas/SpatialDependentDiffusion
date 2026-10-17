@@ -1,15 +1,15 @@
 {
   "version": 1,
   "jobs": {
-    "run.py": "This job runs the foraging-cell model (a validation check, the three-way comparison, or a rendering); its comparison of particle, continuum and closed-form descriptions shows which microscopic response rule a population measurement can identify.",
-    "generate_figure_1_response_rules.py": "This job draws the nine elementary rules by which a cell can change its swimming in response to nutrient, so readers see the candidate strategies before they are compared.",
-    "generate_figure_2_nutrient_landscape.py": "This job draws the single-wavelength nutrient landscape and computes the design numbers behind it, because every closed-form prediction in the paper depends on that one wavenumber.",
-    "generate_figure_4_macroscopic_observables.py": "This job runs the same population release three ways (particle walk, continuum equation, closed-form prediction) and plots their large-scale observables, so agreement between the three descriptions can be checked.",
-    "generate_figure_5_foraging_observables.py": "This job measures how much nutrient each response rule gains over time relative to its predicted gain, showing what a population actually earns from each foraging strategy.",
-    "generate_figure_6_information_observables.py": "This job measures how well each response rule steers cells along the nutrient gradient after a time lag, showing how much navigational information the population carries.",
-    "check_numerical_convergence.py": "This job reruns the simulations with smaller time steps and finer grids to show that the reported results do not depend on numerical resolution.",
-    "check_sampling_floor.py": "This job separates random sampling noise from systematic error of the continuum closure, so a mismatch is attributed to the right cause.",
-    "benchmark_performance.py": "This job times a small version of the particle pipeline at several thread counts and batch sizes, so production runs use measured rather than guessed settings.",
-    "generate_manuscript_videos.py": "This job renders the two supplementary videos from the saved comparison archives so readers can watch the density evolve in time."
+    "simulations.population_release.run": "This job runs the foraging-cell model (a validation check, the three-way comparison, or a rendering); its comparison of particle, continuum and closed-form descriptions shows which microscopic response rule a population measurement can identify.",
+    "analysis.manuscript.figure_1_response_rules.run": "This job draws the nine elementary rules by which a cell can change its swimming in response to nutrient, so readers see the candidate strategies before they are compared.",
+    "analysis.manuscript.figure_2_nutrient_landscape.run": "This job draws the single-wavelength nutrient landscape and computes the design numbers behind it, because every closed-form prediction in the paper depends on that one wavenumber.",
+    "analysis.manuscript.figure_4_macroscopic_observables.run": "This job runs the same population release three ways (particle walk, continuum equation, closed-form prediction) and plots their large-scale observables, so agreement between the three descriptions can be checked.",
+    "analysis.manuscript.figure_5_foraging_observables.run": "This job measures how much nutrient each response rule gains over time relative to its predicted gain, showing what a population actually earns from each foraging strategy.",
+    "analysis.manuscript.figure_6_information_observables.run": "This job measures how well each response rule steers cells along the nutrient gradient after a time lag, showing how much navigational information the population carries.",
+    "analysis.simulations.numerical_convergence.run": "This job reruns the simulations with smaller time steps and finer grids to show that the reported results do not depend on numerical resolution.",
+    "analysis.simulations.sampling_floor.run": "This job separates random sampling noise from systematic error of the continuum closure, so a mismatch is attributed to the right cause.",
+    "analysis.simulations.performance_benchmark.run": "This job times a small version of the particle pipeline at several thread counts and batch sizes, so production runs use measured rather than guessed settings.",
+    "analysis.manuscript.supplementary_videos.run": "This job renders the two supplementary videos from the saved comparison archives so readers can watch the density evolve in time."
   }
 }

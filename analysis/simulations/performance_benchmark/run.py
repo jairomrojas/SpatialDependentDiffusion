@@ -14,23 +14,23 @@ import json
 import os
 import platform
 import statistics
-import sys
 import time
 from dataclasses import replace
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
-from chem_swimmer.config import load_config
-from chem_swimmer.density import compute_position_pdf
+from model.solvers.chem_swimmer.config import load_config
+from model.solvers.chem_swimmer.density import compute_position_pdf
 
 
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--config", type=Path, default=PROJECT_ROOT / "config" / "default.toml"
+        "--config",
+        type=Path,
+        default=PROJECT_ROOT / "model" / "parameters" / "default.toml",
     )
     parser.add_argument("--ensemble", type=int, default=4096)
     parser.add_argument("--duration", type=float, default=5.0e-4)

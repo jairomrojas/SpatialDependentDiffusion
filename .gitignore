@@ -1,6 +1,7 @@
 # Operating-system and editor files
 .DS_Store
 **/.DS_Store
+*:Zone.Identifier
 
 # Python environments and caches
 **/.venv/
@@ -8,16 +9,17 @@
 **/*.py[cod]
 **/.pytest_cache/
 **/.ruff_cache/
+**/.mypy_cache/
 **/.cache/
+*.nb[ci]
 
 # Coding-agent directories can hold shared rules or skills; ignore only local
 # state files (machine-local ignores live in .git/info/exclude).
 .claude/settings.local.json
 
-# Reproducible heavyweight simulation outputs
-simulation/results/data/
-simulation/results/videos/
-simulation/results/figures/frames_vs_time/
+# Everything the code produces (~/setup layout): simulation archives, metrics,
+# supplementary figures and videos. Regenerable; large arrays are never in Git.
+/outputs/
 
 # LaTeX intermediates (the collaborator-facing PDF is retained)
 manuscript/*.aux
@@ -27,3 +29,7 @@ manuscript/*.log
 manuscript/*.out
 manuscript/*.synctex.gz
 manuscript/*.bak
+
+# Overleaf isolated Git metadata and project tagging (overleaf_sync)
+**/.overleaf-git/
+**/.overleaf_id

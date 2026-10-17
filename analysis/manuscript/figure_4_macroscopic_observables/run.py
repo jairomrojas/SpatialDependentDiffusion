@@ -17,25 +17,40 @@ import time
 from dataclasses import replace
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+ROOT = Path(__file__).resolve().parents[3]
 
 import numpy as np
 
-from chem_swimmer import observables as ob
-from chem_swimmer.config import load_config
-from chem_swimmer.density import PDF_CASES, compute_position_pdf
-from chem_swimmer.fields import create_field
-from chem_swimmer.visualization.observable_plot import (
+from model.solvers.chem_swimmer import observables as ob
+from model.solvers.chem_swimmer.config import load_config
+from model.solvers.chem_swimmer.density import PDF_CASES, compute_position_pdf
+from model.solvers.chem_swimmer.fields import create_field
+from model.solvers.chem_swimmer.visualization.observable_plot import (
     render_macroscopic_observable_report,
 )
 
-ARCHIVE = ROOT / "results" / "data" / "macroscopic-observables-particles.npz"
-METRICS = ROOT / "results" / "metrics" / "macroscopic-observables.csv"
-FIGURE = ROOT.parent / "manuscript" / "figures" / "figure-4-macroscopic-observables.pdf"
+ARCHIVE = (
+    ROOT
+    / "outputs"
+    / "simulations"
+    / "population_release"
+    / "data"
+    / "macroscopic-observables-particles.npz"
+)
+METRICS = (
+    ROOT
+    / "outputs"
+    / "simulations"
+    / "population_release"
+    / "metrics"
+    / "macroscopic-observables.csv"
+)
+FIGURE = ROOT / "manuscript" / "figures" / "figure-4-macroscopic-observables.pdf"
 SUPPLEMENT = (
     ROOT
-    / "results"
+    / "outputs"
+    / "simulations"
+    / "population_release"
     / "figures"
     / "supplementary"
     / "figure-s16-macroscopic-observables.pdf"
@@ -145,7 +160,7 @@ def _write_metrics(series: dict[str, ob.TransportObservables], gamma1: float) ->
 
 def main() -> None:
     reuse, ensemble, duration = _arguments()
-    base = load_config(ROOT / "config" / "default.toml")
+    base = load_config(ROOT / "model" / "parameters" / "default.toml")
     config = replace(
         base,
         density=replace(base.density, ensemble_size=ensemble, min_samples_per_kernel=5),

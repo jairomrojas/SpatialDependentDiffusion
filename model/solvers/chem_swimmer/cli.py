@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
-import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -20,15 +19,10 @@ from .fields import create_field
 from .numerics import resolve_numerics
 from .simulator import simulate
 
-SOURCE_ROOT = Path(__file__).resolve().parents[2]
-SOURCE_CONFIG = SOURCE_ROOT / "config" / "default.toml"
-INSTALLED_CONFIG = (
-    Path(sys.prefix) / "share" / "chem-swimmer" / "config" / "default.toml"
-)
-IN_SOURCE_CHECKOUT = (SOURCE_ROOT / "pyproject.toml").is_file()
-PROJECT_ROOT = SOURCE_ROOT if IN_SOURCE_CHECKOUT else Path.cwd()
-DEFAULT_CONFIG = SOURCE_CONFIG if IN_SOURCE_CHECKOUT else INSTALLED_CONFIG
-RESULTS_ROOT = PROJECT_ROOT / "results"
+# This file sits in model/solvers/chem_swimmer/; the repository root is three levels up.
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_CONFIG = PROJECT_ROOT / "model" / "parameters" / "default.toml"
+RESULTS_ROOT = PROJECT_ROOT / "outputs" / "simulations" / "population_release"
 FIGURE_ROOT = RESULTS_ROOT / "figures"
 SUPPLEMENTARY_FIGURES = FIGURE_ROOT / "supplementary"
 METRICS_ROOT = RESULTS_ROOT / "metrics"
@@ -329,7 +323,7 @@ def main() -> None:
         play_live(trajectory, field, resolved_config, playback_speed=args.speed)
         return
 
-    output_directory = PROJECT_ROOT / "results" / "videos"
+    output_directory = RESULTS_ROOT / "videos"
     if args.command == "video":
         from .visualization import render_single_video
 
@@ -530,7 +524,7 @@ def main() -> None:
         )
         for strategy_output in strategy_outputs:
             print(f"Wrote {strategy_output}")
-        paper_root = PROJECT_ROOT.parent / "manuscript"
+        paper_root = PROJECT_ROOT / "manuscript"
         paper_figures = paper_root / "figures"
         if (paper_root / "main.tex").is_file():
             paper_figures.mkdir(parents=True, exist_ok=True)

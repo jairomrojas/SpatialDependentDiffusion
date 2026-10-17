@@ -8,23 +8,22 @@ On the reference workstation, use the global Pixi environment named
 ```bash
 pixi global list
 python -c "import sys; print(sys.prefix)"
-PYTHONPATH=src python -m pytest -q
+python -m pytest -q
 python -m ruff check .
 python -m ruff format --check .
 ```
 
-External collaborators without that workstation environment can create a
-virtual environment and install `.[dev]`. The package uses a `src/` layout;
-CI installs it in editable mode so imports also exercise the packaged path.
-`python run.py ...` remains available in the mandatory global environment via
-the repository-local `PYTHONPATH` workflow.
+All commands run from the repository root; the code is imported from there,
+not installed. External collaborators without that workstation environment can
+create a virtual environment and install the dependencies listed in
+`pyproject.toml` (see `simulations/population_release/README.md`); CI does the same.
 
 ## Scientific change checklist
 
 Changes to equations, response cases, stochastic updates, boundaries, density
 estimation, or the finite-volume solver should include:
 
-1. a mathematical identity or limiting case in `tests/`;
+1. a mathematical identity or limiting case in `model/solvers/tests/`;
 2. fixed-seed reproducibility where applicable;
 3. a refinement check in \(dt\), grid spacing, \(M\), or bandwidth;
 4. conservation/nonnegativity checks for probability densities;
@@ -39,12 +38,13 @@ refinement.
 
 ## Generated files
 
-Raw files below `results/data/`, videos, diagnostic frame sequences, caches,
-compiled Numba artifacts, and local virtual environments are ignored by
+Everything below `outputs/` (raw archives, videos, diagnostic frame sequences, caches,
+compiled Numba artifacts) and local virtual environments are ignored by
 version control. Share large generated results as a release artifact or data
 deposit, keeping NPZ and CSV files together with their figures. Density NPZ
 files embed their TOML input and runtime provenance. Only compact figures and
-summary metrics intended for collaborators belong in curated `results/`.
+summary metrics intended for collaborators are curated in
+`outputs/simulations/population_release/` and shared deliberately.
 
 ## Public release
 

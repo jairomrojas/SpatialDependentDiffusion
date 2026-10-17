@@ -2,9 +2,9 @@ from dataclasses import replace
 
 import numpy as np
 
-from chem_swimmer.config import load_config
-from chem_swimmer.density import PositionPDFResult, save_position_pdf
-from chem_swimmer.result_cache import (
+from model.solvers.chem_swimmer.config import load_config
+from model.solvers.chem_swimmer.density import PositionPDFResult, save_position_pdf
+from model.solvers.chem_swimmer.result_cache import (
     load_cached_results,
     simulation_fingerprint,
     write_cache_manifest,
@@ -12,7 +12,7 @@ from chem_swimmer.result_cache import (
 
 
 def test_fingerprint_ignores_style_but_tracks_physics():
-    config = load_config("config/default.toml")
+    config = load_config("model/parameters/default.toml")
     styled = replace(config, video=replace(config.video, dpi=config.video.dpi + 10))
     changed = replace(
         config,
@@ -23,7 +23,7 @@ def test_fingerprint_ignores_style_but_tracks_physics():
 
 
 def test_manifest_reuses_only_matching_archives(tmp_path):
-    config = load_config("config/default.toml")
+    config = load_config("model/parameters/default.toml")
     density = np.ones((1, 2, 3, 3))
     result = PositionPDFResult(
         times=np.array([0.0, config.simulation.duration]),

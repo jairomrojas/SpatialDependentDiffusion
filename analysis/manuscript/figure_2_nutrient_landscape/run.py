@@ -13,28 +13,39 @@ Run from the simulation directory:
 from __future__ import annotations
 
 import csv
-import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+ROOT = Path(__file__).resolve().parents[3]
 
-from chem_swimmer.config import load_config
-from chem_swimmer.fields import create_field
-from chem_swimmer.visualization.landscape_plot import (
+from model.solvers.chem_swimmer.config import load_config
+from model.solvers.chem_swimmer.fields import create_field
+from model.solvers.chem_swimmer.visualization.landscape_plot import (
     landscape_summary,
     render_landscape_report,
 )
 
-FIGURE = ROOT.parent / "manuscript" / "figures" / "figure-2-nutrient-landscape.pdf"
+FIGURE = ROOT / "manuscript" / "figures" / "figure-2-nutrient-landscape.pdf"
 SUPPLEMENT = (
-    ROOT / "results" / "figures" / "supplementary" / "figure-s09-nutrient-landscape.pdf"
+    ROOT
+    / "outputs"
+    / "simulations"
+    / "population_release"
+    / "figures"
+    / "supplementary"
+    / "figure-s09-nutrient-landscape.pdf"
 )
-METRICS = ROOT / "results" / "metrics" / "nutrient-landscape.csv"
+METRICS = (
+    ROOT
+    / "outputs"
+    / "simulations"
+    / "population_release"
+    / "metrics"
+    / "nutrient-landscape.csv"
+)
 
 
 def main() -> None:
-    config = load_config(ROOT / "config" / "default.toml")
+    config = load_config(ROOT / "model" / "parameters" / "default.toml")
     field = create_field(config.field)
     summary = landscape_summary(config, field)
 

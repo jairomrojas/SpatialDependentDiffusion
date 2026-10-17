@@ -14,18 +14,18 @@ import numpy as np
 from matplotlib.animation import FFMpegWriter
 from matplotlib.colors import Normalize, TwoSlopeNorm
 
-from chem_swimmer.cases import CASES
-from chem_swimmer.config import load_config
-from chem_swimmer.density import PositionPDFResult, load_position_pdf
-from chem_swimmer.fields import create_field
-from chem_swimmer.visualization.comparison_plot import (
+from model.solvers.chem_swimmer.cases import CASES
+from model.solvers.chem_swimmer.config import load_config
+from model.solvers.chem_swimmer.density import PositionPDFResult, load_position_pdf
+from model.solvers.chem_swimmer.fields import create_field
+from model.solvers.chem_swimmer.visualization.comparison_plot import (
     _disk_mesh,
     _display_density,
     _display_polarity,
     _masked,
     _nearest_time_index,
 )
-from chem_swimmer.visualization.manuscript_plot import (
+from model.solvers.chem_swimmer.visualization.manuscript_plot import (
     _DIFFERENCE_CMAP,
     PAPER_COLUMN_LABELS,
     PAPER_REPORT_TIME,
@@ -36,15 +36,17 @@ from chem_swimmer.visualization.manuscript_plot import (
     shared_paper_limits,
 )
 
-ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "results" / "data"
-VIDEOS = ROOT / "results" / "videos"
+ROOT = Path(__file__).resolve().parents[3]
+DATA = ROOT / "outputs" / "simulations" / "population_release" / "data"
+VIDEOS = ROOT / "outputs" / "simulations" / "population_release" / "videos"
 
 
 def _field():
     """The landscape, so the frames carry the same crest marks as the figures."""
 
-    return create_field(load_config(ROOT / "config" / "default.toml").field)
+    return create_field(
+        load_config(ROOT / "model" / "parameters" / "default.toml").field
+    )
 
 
 def _load() -> list[tuple[str, PositionPDFResult]]:

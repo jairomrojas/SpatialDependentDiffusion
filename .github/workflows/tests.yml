@@ -11,10 +11,8 @@ concurrency:
   group: tests-${{ github.ref }}
   cancel-in-progress: true
 
-defaults:
-  run:
-    working-directory: simulation
-
+# Everything runs from the repository root: the code is imported from there
+# (pyproject.toml sets pytest's pythonpath), not installed as a package.
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -25,7 +23,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: simulation/pyproject.toml
+          cache-dependency-path: .github/workflows/tests.yml
       - name: Install quality checks
         run: python -m pip install ruff==0.16.6
       - name: Lint
@@ -46,27 +44,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-          cache-dependency-path: simulation/pyproject.toml
-      - name: Install package and development checks
+          cache-dependency-path: .github/workflows/tests.yml
+      - name: Install dependencies (listed in pyproject.toml)
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
+          python -m pip install "numpy>=2.0,<2.6" "scipy>=1.13" "matplotlib>=3.8" \
+            "pillow>=10" "numba>=0.67,<0.68" "tqdm>=4.66" "pytest>=9.1,<10"
       - name: Test
         run: python -m pytest -q
-      - name: Installed CLI smoke test
-        run: chem-swimmer --help
-
-  package:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: simulation/pyproject.toml
-      - name: Build wheel and source archive
-        run: |
-          python -m pip install --upgrade build
-          python -m build
+      - name: CLI smoke test
+        run: python -m simulations.population_release.run --help

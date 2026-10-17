@@ -52,7 +52,7 @@ PAPER_COLUMN_LABELS = {
     "moment": "Polar PDE",
     "analytic": "Fourier",
 }
-# The nine sensitivities in config/default.toml are calibrated so that all
+# The nine sensitivities in model/parameters/default.toml are calibrated so that all
 # nine responses are comparable at the end of the configured run, where the
 # O(t^3) rules have caught up with the O(t) ones.  Reporting there is what
 # makes one shared linear scale an honest comparison.

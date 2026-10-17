@@ -24,24 +24,41 @@ import sys
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+ROOT = Path(__file__).resolve().parents[3]
 
 import numpy as np
 
-from chem_swimmer import information as nav
-from chem_swimmer.config import load_config
-from chem_swimmer.density import PDF_CASES
-from chem_swimmer.fields import create_field
-from chem_swimmer.visualization.information_plot import render_information_report
+from model.solvers.chem_swimmer import information as nav
+from model.solvers.chem_swimmer.config import load_config
+from model.solvers.chem_swimmer.density import PDF_CASES
+from model.solvers.chem_swimmer.fields import create_field
+from model.solvers.chem_swimmer.visualization.information_plot import (
+    render_information_report,
+)
 
-CONFIG = ROOT / "config" / "navigation.toml"
-ARCHIVE = ROOT / "results" / "data" / "navigation-observables.npz"
-METRICS = ROOT / "results" / "metrics" / "navigation-observables.csv"
-FIGURE = ROOT.parent / "manuscript" / "figures" / "figure-6-information-observables.pdf"
+CONFIG = ROOT / "model" / "parameters" / "navigation.toml"
+ARCHIVE = (
+    ROOT
+    / "outputs"
+    / "simulations"
+    / "population_release"
+    / "data"
+    / "navigation-observables.npz"
+)
+METRICS = (
+    ROOT
+    / "outputs"
+    / "simulations"
+    / "population_release"
+    / "metrics"
+    / "navigation-observables.csv"
+)
+FIGURE = ROOT / "manuscript" / "figures" / "figure-6-information-observables.pdf"
 SUPPLEMENT = (
     ROOT
-    / "results"
+    / "outputs"
+    / "simulations"
+    / "population_release"
     / "figures"
     / "supplementary"
     / "figure-s18-information-observables.pdf"
@@ -170,6 +187,7 @@ def main() -> int:
             kinetic=kinetic,
             prediction=prediction,
             figure_path=path,
+            also_png=False,
         )
         print(f"wrote {path}")
     print(f"wrote {METRICS}")

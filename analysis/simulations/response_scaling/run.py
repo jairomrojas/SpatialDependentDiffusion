@@ -18,20 +18,21 @@ from __future__ import annotations
 
 import argparse
 import csv
-import sys
 from dataclasses import replace
 from math import ceil
 from pathlib import Path
 
 import numpy as np
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
-from chem_swimmer.accelerated import numba_available_for, state_batch_numba
-from chem_swimmer.config import ProjectConfig, load_config
-from chem_swimmer.fields import create_field
-from chem_swimmer.numerics import build_resolution_plan
+from model.solvers.chem_swimmer.accelerated import (
+    numba_available_for,
+    state_batch_numba,
+)
+from model.solvers.chem_swimmer.config import ProjectConfig, load_config
+from model.solvers.chem_swimmer.fields import create_field
+from model.solvers.chem_swimmer.numerics import build_resolution_plan
 
 CASES = (0, 2, 3, 4, 5)
 METRICS = (
@@ -246,7 +247,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=Path,
-        default=PROJECT_ROOT / "config" / "default.toml",
+        default=PROJECT_ROOT / "model" / "parameters" / "default.toml",
     )
     parser.add_argument("--ensemble", type=int, default=1024)
     parser.add_argument("--duration", type=float)
@@ -256,7 +257,12 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=PROJECT_ROOT / "results" / "data" / "response_scaling_audit.csv",
+        default=PROJECT_ROOT
+        / "outputs"
+        / "simulations"
+        / "population_release"
+        / "data"
+        / "response_scaling_audit.csv",
     )
     args = parser.parse_args()
     scales = tuple(float(value) for value in args.scales.split(","))
