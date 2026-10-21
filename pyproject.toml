@@ -1,7 +1,7 @@
 # Tool settings only: nothing here is installed. Code is imported from the
 # repository root (~/setup/rules/organizing_projects/organizing_repositories.md).
 # Runtime dependencies: numpy>=2.0,<2.6, scipy>=1.13, matplotlib>=3.8, pillow>=10,
-# numba>=0.67,<0.68, tqdm>=4.66; optional cairosvg>=2.7 for Figure 1.
+# numba>=0.67,<0.69, tqdm>=4.66; optional cairosvg>=2.7 for Figure 1.
 
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]

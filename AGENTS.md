@@ -13,7 +13,7 @@ Collaborator paper *Which foraging strategy? Reading microscopic motility rules 
 ## Commands (from the repository root)
 ```bash
 science_pytest -q --tb=short -- model/solvers/tests                          # scientific + regression suite (~3 min)
-ruff check . && ruff format --check .        # pyproject/CI pin ruff 0.16.6, physics has 0.17.0: formatting diffs may be version noise
+ruff check . && ruff format --check .        # CI pins ruff 0.17.1, the same as physics
 cd manuscript && science_run latexmk -pdf main.tex                           # paper
 science_run python -m simulations.population_release.run check --case all    # seconds
 science_run python -m simulations.population_release.run compare             # full numerical comparison (long)
